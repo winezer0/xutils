@@ -8,6 +8,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// LoadYAMLBytes 从文件内容中加载YAML数据 v 一般是地址对象
+func LoadYAMLBytes(content []byte, v interface{}) error {
+	if err := yaml.Unmarshal(content, v); err != nil {
+		return err
+	}
+	return nil
+}
+
 // LoadYAML 从文件加载YAML数据
 func LoadYAML(filePath string, v interface{}) error {
 	logging.Debugf("Loading YAML file...: %s", filePath)
@@ -16,7 +24,7 @@ func LoadYAML(filePath string, v interface{}) error {
 		return fmt.Errorf("failed to read the YAML file: %v", err)
 	}
 	logging.Debugf("Size of the YAML file: %d byte", len(data))
-	if err := yaml.Unmarshal(data, v); err != nil {
+	if err := LoadYAMLBytes(data, v); err != nil {
 		return fmt.Errorf("failed to parse YAML data: %v", err)
 	}
 	return nil

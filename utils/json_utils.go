@@ -6,16 +6,23 @@ import (
 	"os"
 )
 
+// LoadJSONBytes 从文件内容加载JSON数据
+func LoadJSONBytes(content []byte, v interface{}) error {
+	if err := json.Unmarshal(content, v); err != nil {
+		return err
+	}
+	return nil
+}
+
 // LoadJSON 从文件加载JSON数据
 func LoadJSON(filePath string, v interface{}) error {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("read json file error: %v", err)
 	}
-	if err := json.Unmarshal(data, v); err != nil {
+	if err := LoadJSONBytes(data, v); err != nil {
 		return fmt.Errorf("parse json data error: %v", err)
 	}
-
 	return nil
 }
 
