@@ -125,3 +125,12 @@ func ToSlashPath(p string) string {
 	p = strings.TrimPrefix(p, "./")
 	return p
 }
+
+// GetAbsPath 获取指定路径的绝对路径，如果出错则返回原始路径。 获取项目根目录
+func GetAbsPath(path string) string {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	return absPath
+}
