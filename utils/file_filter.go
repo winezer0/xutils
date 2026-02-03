@@ -106,3 +106,27 @@ func IsAllowedSuffixes(filename string, suffixesStr string) bool {
 
 	return false
 }
+
+func CollectFiles(paths []string, suffixesStr string) ([]string, error) {
+	finalFiles := make([]string, 0, len(paths))
+	for _, path := range paths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		// 判断路径是否存在
+		if exists, _, _ := PathExists(path); !exists {
+			continue
+		}
+		// 获取目录下的所有文件
+		files, _ := GetAllFilePaths(path)
+		for _, file := range files {
+			if IsAllowedSuffixes(file, suffixesStr) {
+				finalFiles = append(finalFiles, file)
+			}
+		}
+	}
+
+	finalFiles = UniqueSlice(finalFiles, false, true)
+	return finalFiles, nil
+}
