@@ -30,3 +30,22 @@ func UniqueSlice(slice []string, ignoreCase, skipEmpty bool) []string {
 
 	return out
 }
+
+// ListSubtract 返回 a - b，即 a 中有但 b 中没有的元素（保持 a 的顺序）
+func ListSubtract(a, b []string) []string {
+	// 将 b 转为 map 以实现 O(1) 查找
+	bSet := make(map[string]struct{}, len(b))
+	for _, item := range b {
+		bSet[item] = struct{}{}
+	}
+
+	// 遍历 a，只保留不在 bSet 中的元素
+	var result []string
+	for _, item := range a {
+		if _, exists := bSet[item]; !exists {
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
