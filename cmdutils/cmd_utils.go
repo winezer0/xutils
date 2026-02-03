@@ -14,3 +14,15 @@ func SplitComma(s string) []string {
 	}
 	return out
 }
+
+func FormatCmdsComma(raw []string) []string {
+	var formated []string
+	for _, selectedModel := range raw {
+		// 按逗号分割多个模型定义
+		if ContainsComma(selectedModel) {
+			parts := SplitComma(selectedModel)
+			formated = append(formated, parts...)
+		}
+	}
+	return formated
+}
