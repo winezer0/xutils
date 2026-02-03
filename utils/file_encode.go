@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-// DetectFileEncoding 高效检测文件编码
+// detectFileEncoding 高效检测文件编码
 // 优先检测BOM，然后使用chardet库进行内容分析
-func DetectFileEncoding(filePath string) (string, error) {
+func detectFileEncoding(filePath string) (string, error) {
 	defaultEncode := "utf-8"
 
 	file, err := os.Open(filePath)

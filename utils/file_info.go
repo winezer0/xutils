@@ -34,7 +34,7 @@ func PathToFileInfo(path string) (FileInfo, error) {
 	}
 
 	// 检测文件编码（保持原逻辑）
-	encoding, err := DetectFileEncoding(path)
+	encoding, err := detectFileEncoding(path)
 	if err != nil {
 		logging.Warnf("detect file %s encoding error:%v", path, err)
 	}

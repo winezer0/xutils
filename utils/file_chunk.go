@@ -23,7 +23,7 @@ type ChunkInfo struct {
 func ReadFileByChunk(filePath, encode string, chunkSize int, handler func(chunk ChunkInfo) error) error {
 	// 如果未指定编码，则自动检测
 	if encode == "" {
-		detectedEnc, err := DetectFileEncoding(filePath)
+		detectedEnc, err := detectFileEncoding(filePath)
 		if err == nil && detectedEnc != "" {
 			encode = detectedEnc
 		} else {
