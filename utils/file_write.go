@@ -14,3 +14,13 @@ func SaveToFile(filePath string, data []byte) error {
 	// 写入文件
 	return os.WriteFile(filePath, data, 0644)
 }
+
+// CreateFile 创建文件，如果目录不存在会自动创建
+func CreateFile(filePath string) (*os.File, error) {
+	// 确保目录存在
+	if err := EnsureDir(filePath, true); err != nil {
+		return nil, err
+	}
+	// 创建文件
+	return os.Create(filePath)
+}

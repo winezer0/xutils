@@ -49,3 +49,19 @@ func ListSubtract(a, b []string) []string {
 
 	return result
 }
+
+// MergeSlice 合并多个字符串切片，并自动去重（复用UniqueSlice的逻辑）
+// - slices: 任意数量的待合并字符串切片（支持传入1个或多个切片）
+// 返回值: 合并、去重、过滤后的唯一字符串切片
+func MergeSlice(slices ...[]string) []string {
+	// 1. 合并所有输入切片为一个临时切片
+	merged := make([]string, 0)
+	for _, s := range slices {
+		if s == nil { // 容错：跳过nil切片，避免panic
+			continue
+		}
+		merged = append(merged, s...)
+	}
+
+	return merged
+}
