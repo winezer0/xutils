@@ -7,8 +7,13 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-// NewProcessBarByTotalTask 初始化进度显示条
+// NewProcessBarByTotalTask 初始化进度显示条 TODO deprecated NewProcessBarByTotalTask use NewProcessBar
 func NewProcessBarByTotalTask(total int64, desc string) *progressbar.ProgressBar {
+	return NewProcessBar(total, desc)
+}
+
+// NewProcessBar 初始化进度显示条
+func NewProcessBar(total int64, desc string) *progressbar.ProgressBar {
 	bar := progressbar.NewOptions64(
 		total,                                     // 任务总数
 		progressbar.OptionSetDescription(desc),    // 进度条描述信息
@@ -28,6 +33,31 @@ func NewProcessBarByTotalTask(total int64, desc string) *progressbar.ProgressBar
 			SaucerPadding: " ", // 未完成部分的填充字符
 			BarStart:      "[", // 进度条起始字符
 			BarEnd:        "]", // 进度条结束字符
+		}),
+	)
+	return bar
+}
+
+// NewSpinner 初始化不确定总数的进度条（Spinner）
+func NewSpinner(desc string) *progressbar.ProgressBar {
+	bar := progressbar.NewOptions64(
+		-1, // -1 表示不确定总数
+		progressbar.OptionSetDescription(desc),
+		progressbar.OptionSetWidth(15),
+		progressbar.OptionThrottle(100*time.Millisecond),
+		progressbar.OptionShowCount(),
+		progressbar.OptionShowIts(),
+		progressbar.OptionOnCompletion(func() {
+			fmt.Println()
+		}),
+		progressbar.OptionSpinnerType(14),
+		progressbar.OptionFullWidth(),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "=",
+			SaucerHead:    ">",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
 		}),
 	)
 	return bar

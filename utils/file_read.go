@@ -64,13 +64,3 @@ func ReadFileToBytes(path string) ([]byte, error) {
 	// 读取成功时，返回字节切片和 nil
 	return content, nil
 }
-
-// IsEmptyFile 检查文件是否为空或不存在
-func IsEmptyFile(filename string) bool {
-	// Get file info
-	fileInfo, err := os.Stat(filename)
-	if os.IsNotExist(err) || fileInfo.Size() == 0 {
-		return true
-	}
-	return false
-}
