@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -23,4 +24,11 @@ func CreateFile(filePath string) (*os.File, error) {
 	}
 	// 创建文件
 	return os.Create(filePath)
+}
+
+// WriteToFile 将任意数据写入文本文件
+func WriteToFile(filePath string, data interface{}) error {
+	// 将任意数据转换为字符串形式
+	content := fmt.Sprintf("%+v", data)
+	return SaveToFile(filePath, []byte(content))
 }
