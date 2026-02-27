@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"bufio"
+	"fmt"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/transform"
 	"io"
@@ -57,16 +59,64 @@ func readFileWithEncoding(filePath string, enc encoding.Encoding) (string, error
 // 如果encoding为空或不匹配任何已知编码，则默认以UTF-8读取
 // 读取时会忽略解码错误，类似Python的errors=ignore
 func ReadFileWithEncoding(filePath, encode string) (string, error) {
-	// 如果未指定编码，则自动检测
-	if encode == "" {
-		detectedEnc, err := detectFileEncoding(filePath)
-		if err == nil && detectedEnc != "" {
-			encode = detectedEnc
-		} else {
-			// 检测失败，默认使用UTF-8
-			encode = "utf-8"
-		}
+	encode = DetectFileEncode(filePath, encode)
+	return readFileWithEncoding(filePath, NormalizedEncode(encode))
+}
+
+// ReadFileToListWithEncoding 读取文件并返回处理后的行列表
+func ReadFileToListWithEncoding(filePath, encode string, deUnprint, ignoreBlanks, deWeight bool) ([]string, error) {
+	if !FileExists(filePath) {
+		return nil, fmt.Errorf("file is not exists")
 	}
-	// 获取编码器
-	return readFileWithEncoding(filePath, normalizedEncode(encode))
+	// 分析文件编码
+	encode = DetectFileEncode(filePath, encode)
+	// 转换为编码类型
+	enc := NormalizedEncode(encode)
+
+	lines, strings, err2 := readFileToListWithEncoding(filePath, enc, deUnprint, ignoreBlanks)
+	if err2 != nil {
+		return strings, err2
+	}
+
+	// 自动去重
+	if deWeight {
+		lines = UniqueSlice(lines, false, ignoreBlanks)
+	}
+
+	return lines, nil
+}
+
+func readFileToListWithEncoding(filePath string, enc encoding.Encoding, deUnprint bool, ignoreBlanks bool) ([]string, []string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer file.Close()
+	// 关键修正：将reader声明为io.Reader接口类型(兼容所有读取器)
+	var reader io.Reader = file // 默认为文件本身
+	if enc != nil {
+		// 应用编码转换，返回的transform.Reader实现了io.Reader接口
+		reader = transform.NewReader(file, enc.NewDecoder())
+	}
+
+	var lines []string
+	scanner := bufio.NewScanner(reader) // scanner接受io.Reader类型
+	for scanner.Scan() {
+		line := scanner.Text()
+		// 清理不可打印字符
+		if deUnprint {
+			line = CleanupUnprintableChars(line)
+		}
+		// 跳过空白行
+		if ignoreBlanks && line == "" {
+			continue
+		}
+		lines = append(lines, line)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	return lines, nil, nil
 }

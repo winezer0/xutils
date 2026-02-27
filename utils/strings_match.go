@@ -1,30 +1,6 @@
 package utils
 
-import (
-	"strings"
-)
-
-// TruncateString 截断字符串
-func TruncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
-}
-
-// ToLowerKeys 将排除关键字列表全部转为小写
-func ToLowerKeys(keys []string) []string {
-	// 显式处理空列表，避免不必要的切片创建（虽然make空切片性能影响极小，但更直观）
-	if len(keys) == 0 {
-		return []string{}
-	}
-
-	lowerKeys := make([]string, len(keys))
-	for i, key := range keys {
-		lowerKeys[i] = strings.ToLower(key)
-	}
-	return lowerKeys
-}
+import "strings"
 
 // StringHasKey 检查字符串是否包含指定关键字，支持&&和||逻辑
 func StringHasKey(content string, key string) bool {
@@ -125,4 +101,42 @@ func StringsInStrings(stringsA, stringsB []string, ignoreCase bool) (existList, 
 	}
 
 	return existList, notExistList
+}
+
+// StringMatchKeysExpr 关键词表达式匹配(支持简单 || 或 &&)(中文注释)
+func StringMatchKeysExpr(content string, expr string, ignoreCase bool) bool {
+	if expr == "" || content == "" {
+		return false
+	}
+
+	if ignoreCase {
+		content = strings.ToLower(content)
+		expr = strings.ToLower(expr)
+	}
+
+	// 只要有一个关键词存在于内容中，就返回true
+	if strings.Contains(expr, "||") {
+		keys := strings.Split(expr, "||")
+		for _, key := range keys {
+			key = strings.TrimSpace(key)
+			if key != "" && strings.Contains(content, key) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// 所有关键词都必须存在于内容中，才返回true
+	if strings.Contains(expr, "&&") {
+		keys := strings.Split(expr, "&&")
+		for _, key := range keys {
+			key = strings.TrimSpace(key)
+			if key != "" && !strings.Contains(content, key) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return strings.Contains(content, strings.TrimSpace(expr))
 }

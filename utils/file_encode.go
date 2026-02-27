@@ -80,10 +80,10 @@ func detectBOM(data []byte) string {
 	return ""
 }
 
-// normalizedEncode 统一编码名称格式并返回对应的编码器
+// NormalizedEncode 统一编码名称格式并返回对应的编码器
 // 支持多种编码名称别名（如"utf8"等同于"utf-8"，"windows-936"等同于"gbk"）
 // 若编码名称无法识别，默认返回UTF-8编码器
-func normalizedEncode(encodeName string) encoding.Encoding {
+func NormalizedEncode(encodeName string) encoding.Encoding {
 	// 第一步：统一编码名称格式（规范化）
 	normalizedName := strings.ToLower(encodeName)
 	switch normalizedName {
@@ -136,4 +136,18 @@ func normalizedEncode(encodeName string) encoding.Encoding {
 	default:
 		return unicode.UTF8
 	}
+}
+
+func DetectFileEncode(filePath string, encode string) string {
+	// 如果未指定编码，则自动检测
+	if encode == "" {
+		detectedEnc, err := detectFileEncoding(filePath)
+		if err == nil && detectedEnc != "" {
+			encode = detectedEnc
+		} else {
+			// 检测失败，默认使用UTF-8
+			encode = "utf-8"
+		}
+	}
+	return encode
 }

@@ -31,8 +31,9 @@ func LoadJSONBytes(content []byte, v interface{}) error {
 func LoadJSON(filePath string, v interface{}) error {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return fmt.Errorf("read json file error: %v", err)
+		return err
 	}
+	
 	if err := LoadJSONBytes(data, v); err != nil {
 		return fmt.Errorf("parse json data error: %v", err)
 	}

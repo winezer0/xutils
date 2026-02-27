@@ -53,11 +53,8 @@ func (m *CacheManager) LoadCache() error {
 	defer m.cacheMux.Unlock()
 
 	if err := utils.LoadJSON(m.cacheFile, &m.cacheData); err != nil {
-		if os.IsNotExist(err) {
-			m.cacheData = make(map[string]interface{})
-			return nil
-		}
-		return fmt.Errorf("failed to parse cache file [%s]: %w", m.cacheFile, err)
+		m.cacheData = make(map[string]interface{})
+		return nil
 	}
 	return nil
 }

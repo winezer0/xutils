@@ -21,18 +21,9 @@ type ChunkInfo struct {
 // chunkSize: 每个块的大小（字节）
 // handler: 处理每个块的回调函数
 func ReadFileByChunk(filePath, encode string, chunkSize int, handler func(chunk ChunkInfo) error) error {
-	// 如果未指定编码，则自动检测
-	if encode == "" {
-		detectedEnc, err := detectFileEncoding(filePath)
-		if err == nil && detectedEnc != "" {
-			encode = detectedEnc
-		} else {
-			encode = "utf-8"
-		}
-	}
-
 	// 获取编码器
-	enc := normalizedEncode(encode)
+	encode = DetectFileEncode(filePath, encode)
+	enc := NormalizedEncode(encode)
 
 	// 打开文件
 	file, err := os.Open(filePath)
