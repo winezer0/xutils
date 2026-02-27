@@ -64,3 +64,41 @@ func ReadFileToBytes(path string) ([]byte, error) {
 	// 读取成功时，返回字节切片和 nil
 	return content, nil
 }
+
+// LoadPathOrString 允许输入文件名或者字符串
+// 如果是文件名(存在且非目录)，返回文件中的行列表
+// 如果是字符串，直接返回包含该字符串的列表
+func LoadPathOrString(input string) ([]string, error) {
+	// 尝试作为文件处理
+	if FileExists(input) {
+		file, err := os.Open(input)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		var lines []string
+		scanner := bufio.NewScanner(file)
+		// 增加Buffer大小以防行过长，虽然一般hash/plain不会太长
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, 1024*1024)
+
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line != "" {
+				lines = append(lines, line)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
+		return lines, nil
+	}
+
+	// 作为普通字符串处理
+	if strings.TrimSpace(input) == "" {
+		return []string{}, nil
+	}
+
+	return []string{input}, nil
+}
