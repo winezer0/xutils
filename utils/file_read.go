@@ -65,21 +65,6 @@ func ReadFileToBytes(path string) ([]byte, error) {
 	return content, nil
 }
 
-// LoadPathOrString 允许输入文件名或者字符串
-// 如果是文件名(存在且非目录)，返回文件中的行列表
-// 如果是字符串，直接返回包含该字符串的列表
-func LoadPathOrString(input string) ([]string, error) {
-	// 尝试作为文件处理
-	if FileExists(input) {
-		return ReadFileToList(input, true, true)
-	}
-	// 作为普通字符串处理
-	if len(input) == 0 || strings.TrimSpace(input) == "" {
-		return []string{}, nil
-	}
-	return []string{input}, nil
-}
-
 // ReadFileToList 读文件到列表 自动忽略空行
 func ReadFileToList(input string, ignoreBlanks, cleanUnprint bool) ([]string, error) {
 	file, err := os.Open(input)
