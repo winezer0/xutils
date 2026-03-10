@@ -1,6 +1,7 @@
 package cacher
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,10 +16,16 @@ func TestCacheManager_Normal(t *testing.T) {
 	os.Remove(cacheFile)
 
 	cm := NewCacheManager(cacheFile)
-	defer cm.Close()
+	defer func() {
+		if err := cm.Close(); err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	}()
 
 	// Test Set and Get
-	cm.Set("key1", "value1")
+	if err := cm.Set("key1", "value1"); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
 	val, ok := cm.Get("key1")
 	if !ok {
 		t.Error("Expected key1 to exist")
@@ -47,10 +54,16 @@ func TestCacheManager_Normal(t *testing.T) {
 
 func TestCacheManager_EmptyFile(t *testing.T) {
 	cm := NewCacheManager("")
-	defer cm.Close()
+	defer func() {
+		if err := cm.Close(); err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	}()
 
 	// Test Set (should do nothing)
-	cm.Set("key1", "value1")
+	if err := cm.Set("key1", "value1"); !errors.Is(err, ErrCacheDisabled) {
+		t.Errorf("Expected ErrCacheDisabled, got %v", err)
+	}
 
 	// Test Get (should return false)
 	val, ok := cm.Get("key1")
@@ -80,7 +93,11 @@ func TestCacheManager_GetAs(t *testing.T) {
 	defer os.Remove(cacheFile)
 
 	cm := NewCacheManager(cacheFile)
-	defer cm.Close()
+	defer func() {
+		if err := cm.Close(); err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	}()
 
 	type User struct {
 		Name string `json:"name"`
@@ -88,12 +105,14 @@ func TestCacheManager_GetAs(t *testing.T) {
 	}
 
 	u := User{Name: "Alice", Age: 30}
-	cm.Set("user", u)
+	if err := cm.Set("user", u); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
 
 	var u2 User
-	ok := cm.GetAs("user", &u2)
-	if !ok {
-		t.Error("GetAs failed")
+	ok, err := cm.GetAs("user", &u2)
+	if err != nil || !ok {
+		t.Errorf("GetAs failed: %v", err)
 	}
 	if u2.Name != "Alice" || u2.Age != 30 {
 		t.Errorf("GetAs returned incorrect struct: %+v", u2)
@@ -108,14 +127,14 @@ func TestCacheManager_CloseIdempotent(t *testing.T) {
 
 	cm := NewCacheManager(cacheFile)
 	// Call Close multiple times
-	cm.Close()
-	cm.Close() // Should not panic
-	cm.Close() // Should not panic
+	_ = cm.Close()
+	_ = cm.Close() // Should not panic
+	_ = cm.Close() // Should not panic
 
 	// Test empty file case
 	cmEmpty := NewCacheManager("")
-	cmEmpty.Close()
-	cmEmpty.Close() // Should not panic
+	_ = cmEmpty.Close()
+	_ = cmEmpty.Close() // Should not panic
 }
 
 func TestCacheManager_GetAs_Direct(t *testing.T) {
@@ -124,13 +143,19 @@ func TestCacheManager_GetAs_Direct(t *testing.T) {
 	defer os.Remove(cacheFile)
 
 	cm := NewCacheManager(cacheFile)
-	defer cm.Close()
+	defer func() {
+		if err := cm.Close(); err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	}()
 
 	// Case 1: Same type (Direct assignment optimization)
-	cm.Set("str_key", "hello")
+	if err := cm.Set("str_key", "hello"); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
 	var s string
-	if !cm.GetAs("str_key", &s) {
-		t.Error("GetAs string failed")
+	if ok, err := cm.GetAs("str_key", &s); err != nil || !ok {
+		t.Errorf("GetAs string failed: %v", err)
 	}
 	if s != "hello" {
 		t.Errorf("Expected 'hello', got %v", s)
@@ -141,17 +166,19 @@ func TestCacheManager_GetAs_Direct(t *testing.T) {
 	// When loading from file (JSON), raw is map[string]interface{}.
 	// Here we test in-memory struct-to-struct copy if optimization works,
 	// or struct-to-struct via JSON if types differ slightly (though usually types must match for direct assign).
-	
+
 	type User struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
 	}
 	u := User{Name: "Bob", Age: 40}
-	cm.Set("user", u)
+	if err := cm.Set("user", u); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
 
 	var u2 User
-	if !cm.GetAs("user", &u2) {
-		t.Error("GetAs struct failed")
+	if ok, err := cm.GetAs("user", &u2); err != nil || !ok {
+		t.Errorf("GetAs struct failed: %v", err)
 	}
 	if u2 != u {
 		t.Errorf("Expected %+v, got %+v", u, u2)
@@ -167,5 +194,77 @@ func TestCacheManager_AutoSave(t *testing.T) {
 	defer os.Remove(cacheFile)
 
 	cm := NewCacheManager(cacheFile)
-	cm.Close() // Should return immediately
+	if err := cm.Close(); err != nil {
+		t.Errorf("Close failed: %v", err)
+	}
+}
+
+func TestCacheManager_MaxSize(t *testing.T) {
+	tmpDir := os.TempDir()
+	cacheFile := filepath.Join(tmpDir, "test_cache_maxsize.json")
+	defer os.Remove(cacheFile)
+
+	cm := NewCacheManagerWithOptions(cacheFile, 10, 1)
+	defer func() {
+		if err := cm.Close(); err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	}()
+
+	if err := cm.Set("k1", "v1"); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+	if err := cm.Set("k2", "v2"); !errors.Is(err, ErrCacheFull) {
+		t.Errorf("Expected ErrCacheFull, got %v", err)
+	}
+}
+
+func TestCacheManager_Del(t *testing.T) {
+	tmpDir := os.TempDir()
+	cacheFile := filepath.Join(tmpDir, "test_cache_del.json")
+	defer os.Remove(cacheFile)
+
+	cm := NewCacheManager(cacheFile)
+	defer func() {
+		if err := cm.Close(); err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	}()
+
+	if err := cm.Del("missing"); !errors.Is(err, ErrCacheKeyNotFound) {
+		t.Errorf("Expected ErrCacheKeyNotFound, got %v", err)
+	}
+	if err := cm.Set("k1", "v1"); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+	if err := cm.Del("k1"); err != nil {
+		t.Fatalf("Del failed: %v", err)
+	}
+	if _, ok := cm.Get("k1"); ok {
+		t.Error("Expected key to be deleted")
+	}
+}
+
+func TestCacheManager_GetAs_ErrorCases(t *testing.T) {
+	tmpDir := os.TempDir()
+	cacheFile := filepath.Join(tmpDir, "test_cache_getas_err.json")
+	defer os.Remove(cacheFile)
+
+	cm := NewCacheManager(cacheFile)
+	defer func() {
+		if err := cm.Close(); err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	}()
+
+	var v string
+	if ok, err := cm.GetAs("missing", &v); !errors.Is(err, ErrCacheKeyNotFound) || ok {
+		t.Errorf("Expected ErrCacheKeyNotFound, got %v", err)
+	}
+	if err := cm.Set("k1", "v1"); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+	if ok, err := cm.GetAs("k1", "notptr"); !errors.Is(err, ErrCacheInvalidValue) || ok {
+		t.Errorf("Expected ErrCacheInvalidValue, got %v", err)
+	}
 }

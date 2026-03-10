@@ -11,8 +11,15 @@ func ToJSONLine(v interface{}) string {
 	return string(b)
 }
 
+// ToJSONBytesPretty 将任意对象序列化为友好格式的 JSON 字节切片。
 func ToJSONBytesPretty(v interface{}) ([]byte, error) {
 	return json.MarshalIndent(v, "", "  ")
+}
+
+// ToJSONBytes 将任意对象序列化为紧凑格式的 JSON 字节切片。
+// 不包含缩进和换行，体积更小，解析更快，适合机器读取或缓存存储。
+func ToJSONBytes(v interface{}) ([]byte, error) {
+	return json.Marshal(v)
 }
 
 // ToJSON 将任意 map 转换为格式化的 JSON 字符串（用于输出）

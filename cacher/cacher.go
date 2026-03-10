@@ -2,8 +2,10 @@ package cacher
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"time"
@@ -18,16 +20,37 @@ type CacheManager struct {
 	cacheMux  sync.RWMutex
 	modified  bool
 
-	stopChan  chan struct{}
-	waitGroup sync.WaitGroup
-	closeOnce sync.Once
+	maxSize      int
+	saveInterval time.Duration
+	stopChan     chan struct{}
+	waitGroup    sync.WaitGroup
+	closeOnce    sync.Once
 }
 
+var (
+	ErrCacheDisabled     = errors.New("cache disabled")
+	ErrCacheFull         = errors.New("cache size limit reached")
+	ErrCacheKeyNotFound  = errors.New("cache key not found")
+	ErrCacheInvalidValue = errors.New("cache target must be non-nil pointer")
+)
+
 func NewCacheManager(file string) *CacheManager {
+	return NewCacheManagerWithOptions(file, 10*time.Second, 10000)
+}
+
+func NewCacheManagerWithOptions(file string, saveInterval time.Duration, maxSize int) *CacheManager {
+	if saveInterval <= 0 {
+		saveInterval = 10 * time.Second
+	}
+	if maxSize <= 0 {
+		maxSize = 10000
+	}
 	m := &CacheManager{
-		cacheFile: file,
-		cacheData: make(map[string]interface{}),
-		stopChan:  make(chan struct{}),
+		cacheFile:    file,
+		cacheData:    make(map[string]interface{}),
+		stopChan:     make(chan struct{}),
+		saveInterval: saveInterval,
+		maxSize:      maxSize,
 	}
 
 	if file == "" {
@@ -52,9 +75,28 @@ func (m *CacheManager) LoadCache() error {
 	m.cacheMux.Lock()
 	defer m.cacheMux.Unlock()
 
-	if err := utils.LoadJSON(m.cacheFile, &m.cacheData); err != nil {
+	data, err := os.ReadFile(m.cacheFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read cache file error: %w", err)
+	}
+	if len(data) == 0 {
 		m.cacheData = make(map[string]interface{})
 		return nil
+	}
+	if err := json.Unmarshal(data, &m.cacheData); err != nil {
+		return fmt.Errorf("parse cache json error: %w", err)
+	}
+	if m.maxSize > 0 && len(m.cacheData) > m.maxSize {
+		for k := range m.cacheData {
+			if len(m.cacheData) <= m.maxSize {
+				break
+			}
+			delete(m.cacheData, k)
+		}
+		return ErrCacheFull
 	}
 	return nil
 }
@@ -70,38 +112,78 @@ func (m *CacheManager) SaveCache() error {
 		return nil
 	}
 
-	if err := utils.SaveJSON(m.cacheFile, m.cacheData); err != nil {
-		return fmt.Errorf("save cache data to file occur error: %w", err)
+	data, err := utils.ToJSONBytes(m.cacheData)
+	if err != nil {
+		return fmt.Errorf("serialize cache data error: %w", err)
+	}
+
+	if err := utils.EnsureDir(m.cacheFile, true); err != nil {
+		return fmt.Errorf("ensure cache dir error: %w", err)
+	}
+
+	dir := filepath.Dir(m.cacheFile)
+	base := filepath.Base(m.cacheFile)
+	tmpFile, err := os.CreateTemp(dir, base+".tmp-")
+	if err != nil {
+		return fmt.Errorf("create temp cache file error: %w", err)
+	}
+	tmpName := tmpFile.Name()
+	if _, err = tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		_ = os.Remove(tmpName)
+		return fmt.Errorf("write temp cache file error: %w", err)
+	}
+	if err = tmpFile.Sync(); err != nil {
+		tmpFile.Close()
+		_ = os.Remove(tmpName)
+		return fmt.Errorf("sync temp cache file error: %w", err)
+	}
+	if err = tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpName)
+		return fmt.Errorf("close temp cache file error: %w", err)
+	}
+	if utils.FileExists(m.cacheFile) {
+		if err := os.Remove(m.cacheFile); err != nil {
+			_ = os.Remove(tmpName)
+			return fmt.Errorf("remove old cache file error: %w", err)
+		}
+	}
+	if err := os.Rename(tmpName, m.cacheFile); err != nil {
+		_ = os.Remove(tmpName)
+		return fmt.Errorf("replace cache file error: %w", err)
 	}
 	m.modified = false
 	return nil
 }
 
-// autoSaveWorker 和 Close 保持不变
 func (m *CacheManager) autoSaveWorker() {
 	defer m.waitGroup.Done()
 	if m.cacheFile == "" {
 		return
 	}
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(m.saveInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-m.stopChan:
-			m.SaveCache()
 			return
 		case <-ticker.C:
-			m.SaveCache()
+			if err := m.SaveCache(); err != nil {
+				logging.Warnf("save cache error: %v", err)
+			}
 		}
 	}
 }
 
-func (m *CacheManager) Close() {
+func (m *CacheManager) Close() error {
+	var closeErr error
 	m.closeOnce.Do(func() {
 		close(m.stopChan)
 		m.waitGroup.Wait()
+		closeErr = m.SaveCache()
 	})
+	return closeErr
 }
 
 // Clear 清空所有缓存并删除缓存文件
@@ -129,27 +211,39 @@ func (m *CacheManager) Clear() error {
 }
 
 // Set 存任意类型
-func (m *CacheManager) Set(key string, value interface{}) {
+func (m *CacheManager) Set(key string, value interface{}) error {
 	if m.cacheFile == "" {
-		return
+		return ErrCacheDisabled
 	}
 	m.cacheMux.Lock()
 	defer m.cacheMux.Unlock()
 
+	if cur, exists := m.cacheData[key]; exists {
+		if reflect.DeepEqual(cur, value) {
+			return nil
+		}
+	} else if m.maxSize > 0 && len(m.cacheData) >= m.maxSize {
+		return ErrCacheFull
+	}
 	m.cacheData[key] = value
 	m.modified = true
+	return nil
 }
 
 // Del 移除指定key的缓存
-func (m *CacheManager) Del(key string) {
+func (m *CacheManager) Del(key string) error {
 	if m.cacheFile == "" {
-		return
+		return ErrCacheDisabled
 	}
 	m.cacheMux.Lock()
 	defer m.cacheMux.Unlock()
 
+	if _, exists := m.cacheData[key]; !exists {
+		return ErrCacheKeyNotFound
+	}
 	delete(m.cacheData, key)
 	m.modified = true
+	return nil
 }
 
 // Get 获取值，返回 interface{} 和是否存在
@@ -166,44 +260,47 @@ func (m *CacheManager) Get(key string) (interface{}, bool) {
 
 // GetAs 安全地将缓存中的值反序列化为目标类型。
 // 注意：target 必须是指针（如 &myStruct）。
-func (m *CacheManager) GetAs(key string, target interface{}) bool {
+func (m *CacheManager) GetAs(key string, target interface{}) (bool, error) {
 	if m.cacheFile == "" {
-		return false
+		return false, ErrCacheDisabled
 	}
-	// Step 1: 快速读取原始值（最小化锁时间）
 	m.cacheMux.RLock()
 	raw, exists := m.cacheData[key]
 	m.cacheMux.RUnlock() // 尽早释放读锁
 
 	if !exists {
-		return false
+		return false, ErrCacheKeyNotFound
 	}
 
-	// 尝试直接类型断言（更快）
 	rv := reflect.ValueOf(target)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		return false
+		return false, ErrCacheInvalidValue
 	}
 
-	// 如果 raw 类型和 target 指向的类型一致，直接赋值
 	if reflect.TypeOf(raw) == rv.Elem().Type() {
 		rv.Elem().Set(reflect.ValueOf(raw))
-		return true
+		return true, nil
 	}
 
-	// Step 2: 在无锁环境下进行 JSON 转换（避免阻塞其他读操作）
-	jsonBytes, err := json.Marshal(raw)
-	if err != nil {
-		logging.Debugf("GetAs marshal failed for key %s: %v", key, err)
-		return false
+	var jsonBytes []byte
+	switch val := raw.(type) {
+	case []byte:
+		jsonBytes = val
+	case json.RawMessage:
+		jsonBytes = []byte(val)
+	default:
+		var err error
+		jsonBytes, err = json.Marshal(raw)
+		if err != nil {
+			return false, fmt.Errorf("marshal cache value error: %w", err)
+		}
 	}
 
 	if err := json.Unmarshal(jsonBytes, target); err != nil {
-		logging.Debugf("GetAs unmarshal failed for key %s: %v", key, err)
-		return false
+		return false, fmt.Errorf("unmarshal cache value error: %w", err)
 	}
 
-	return true
+	return true, nil
 }
 
 func (m *CacheManager) GetString(key string) (string, bool) {
