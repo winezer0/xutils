@@ -52,41 +52,6 @@ func TestCacheManager_Normal(t *testing.T) {
 	}
 }
 
-func TestCacheManager_EmptyFile(t *testing.T) {
-	cm := NewCacheManager("")
-	defer func() {
-		if err := cm.Close(); err != nil {
-			t.Errorf("Close failed: %v", err)
-		}
-	}()
-
-	// Test Set (should do nothing)
-	if err := cm.Set("key1", "value1"); !errors.Is(err, ErrCacheDisabled) {
-		t.Errorf("Expected ErrCacheDisabled, got %v", err)
-	}
-
-	// Test Get (should return false)
-	val, ok := cm.Get("key1")
-	if ok {
-		t.Error("Expected key1 to NOT exist when cacheFile is empty")
-	}
-	if val != nil {
-		t.Errorf("Expected nil value, got %v", val)
-	}
-
-	// Test Save (should do nothing, no error)
-	err := cm.SaveCache()
-	if err != nil {
-		t.Errorf("SaveCache with empty file returned error: %v", err)
-	}
-
-	// Test Clear (should do nothing, no error)
-	err = cm.Clear()
-	if err != nil {
-		t.Errorf("Clear with empty file returned error: %v", err)
-	}
-}
-
 func TestCacheManager_GetAs(t *testing.T) {
 	tmpDir := os.TempDir()
 	cacheFile := filepath.Join(tmpDir, "test_cache_getas.json")

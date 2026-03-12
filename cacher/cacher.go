@@ -55,17 +55,16 @@ func NewCacheManagerWithOptions(file string, saveInterval time.Duration, maxSize
 
 	if file == "" {
 		return m
+	} else {
+		// 加载缓存
+		if err := m.LoadCache(); err != nil {
+			logging.Warnf("load cache file error: %v", err)
+		}
+		// 启动定时保存缓存数据
+		m.waitGroup.Add(1)
+		go m.autoSaveWorker()
+		return m
 	}
-
-	// 加载缓存
-	if err := m.LoadCache(); err != nil {
-		logging.Warnf("load cache file error: %v", err)
-	}
-
-	// 启动定时保存缓存数据
-	m.waitGroup.Add(1)
-	go m.autoSaveWorker()
-	return m
 }
 
 func (m *CacheManager) LoadCache() error {
@@ -213,7 +212,7 @@ func (m *CacheManager) Clear() error {
 // Set 存任意类型
 func (m *CacheManager) Set(key string, value interface{}) error {
 	if m.cacheFile == "" {
-		return ErrCacheDisabled
+		return nil
 	}
 	m.cacheMux.Lock()
 	defer m.cacheMux.Unlock()
@@ -233,7 +232,7 @@ func (m *CacheManager) Set(key string, value interface{}) error {
 // Del 移除指定key的缓存
 func (m *CacheManager) Del(key string) error {
 	if m.cacheFile == "" {
-		return ErrCacheDisabled
+		return nil
 	}
 	m.cacheMux.Lock()
 	defer m.cacheMux.Unlock()
@@ -247,7 +246,7 @@ func (m *CacheManager) Del(key string) error {
 }
 
 // Get 获取值，返回 interface{} 和是否存在
-func (m *CacheManager) Get(key string) (interface{}, bool) {
+func (m *CacheManager) Get(key string) (data interface{}, exists bool) {
 	if m.cacheFile == "" {
 		return nil, false
 	}
@@ -260,9 +259,9 @@ func (m *CacheManager) Get(key string) (interface{}, bool) {
 
 // GetAs 安全地将缓存中的值反序列化为目标类型。
 // 注意：target 必须是指针（如 &myStruct）。
-func (m *CacheManager) GetAs(key string, target interface{}) (bool, error) {
+func (m *CacheManager) GetAs(key string, target interface{}) (success bool, hasErr error) {
 	if m.cacheFile == "" {
-		return false, ErrCacheDisabled
+		return false, nil
 	}
 	m.cacheMux.RLock()
 	raw, exists := m.cacheData[key]
@@ -303,7 +302,7 @@ func (m *CacheManager) GetAs(key string, target interface{}) (bool, error) {
 	return true, nil
 }
 
-func (m *CacheManager) GetString(key string) (string, bool) {
+func (m *CacheManager) GetString(key string) (data string, success bool) {
 	if m.cacheFile == "" {
 		return "", false
 	}
@@ -317,7 +316,7 @@ func (m *CacheManager) GetString(key string) (string, bool) {
 	return "", false
 }
 
-func (m *CacheManager) GetBool(key string) (bool, bool) {
+func (m *CacheManager) GetBool(key string) (data bool, success bool) {
 	if m.cacheFile == "" {
 		return false, false
 	}
@@ -331,7 +330,7 @@ func (m *CacheManager) GetBool(key string) (bool, bool) {
 	return false, false
 }
 
-func (m *CacheManager) GetInt(key string) (int, bool) {
+func (m *CacheManager) GetInt(key string) (data int, success bool) {
 	if m.cacheFile == "" {
 		return 0, false
 	}
