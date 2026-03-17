@@ -2,7 +2,9 @@ package utils
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -91,4 +93,19 @@ func WriteLines(filename string, lines []string, overwrite bool) error {
 		return fmt.Errorf("failed to flush buffer: %w", err)
 	}
 	return nil
+}
+
+// WriteBytes 写入二进制数据到文件
+func WriteBytes(path string, data []byte) error {
+	if err := EnsureDir(path, true); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = io.Copy(f, bytes.NewReader(data))
+	return err
 }

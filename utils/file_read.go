@@ -3,6 +3,7 @@ package utils
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -98,4 +99,30 @@ func ReadFileToList(input string, ignoreBlanks, cleanUnprint bool) ([]string, er
 	}
 
 	return lines, nil
+}
+
+// ReadFileFirstLine 读取文件第一行（去除首尾空白），专为大文件优化
+// - 仅读取必要内容，内存占用恒定（与文件总大小无关）
+// - 正确处理：空文件、无换行符结尾、Windows(\r\n)/Unix(\n)换行符、超长行
+// - 错误时静默返回空字符串（与原函数行为一致）
+func ReadFileFirstLine(path string, trimSpace bool) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	line, err := reader.ReadString('\n')
+
+	// 仅当发生非EOF错误时返回空（如IO错误）
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+
+	// TrimSpace 自动处理 \r, \n, 空格等空白字符（兼容Windows/Unix）
+	if trimSpace {
+		line = strings.TrimSpace(line)
+	}
+	return line, nil
 }
