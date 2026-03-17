@@ -1,6 +1,9 @@
 package utils
 
-import "path/filepath"
+import (
+	"path/filepath"
+	"strings"
+)
 
 // GetPathLastDir 从文件路径获取目录名称 // 如果路径是文件，则返回其所在目录名 // 如果路径是目录，则返回该目录名
 func GetPathLastDir(path string) string {
@@ -21,4 +24,21 @@ func GetPathLastDir(path string) string {
 		// 如果是文件，返回其父目录名
 		return filepath.Base(filepath.Dir(path))
 	}
+}
+
+// GetFileBaseName 从文件路径获取文件的基础名称
+func GetFileBaseName(path, defaultName string, keepDot bool) string {
+	base := filepath.Base(path)
+	if base == "" {
+		base = defaultName
+	}
+
+	if !keepDot {
+		dot := strings.LastIndex(base, ".")
+		if dot > 0 {
+			base = base[:dot]
+		}
+	}
+
+	return base
 }

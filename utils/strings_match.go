@@ -38,6 +38,21 @@ func StringHasKey(content string, key string) bool {
 	}
 }
 
+// StringHasAllKeys 检查字符串是否包含所有关键字
+func StringHasAllKeys(str string, keys []string, ignoreCase bool) bool {
+	if ignoreCase {
+		str = strings.ToLower(str)
+		keys = ToLowerKeys(keys)
+	}
+
+	for _, key := range keys {
+		if !strings.Contains(str, key) {
+			return false
+		}
+	}
+	return true
+}
+
 // StringHasOneKey 检查字符串 content 是否包含任意一个 keys 中的关键字
 func StringHasOneKey(str string, keys []string, ignoreCase bool) bool {
 	if ignoreCase {
