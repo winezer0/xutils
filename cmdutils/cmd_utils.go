@@ -1,6 +1,8 @@
 package cmdutils
 
-import "strings"
+import (
+	"strings"
+)
 
 // SplitComma 按逗号分割字符串，去除每项前后的空白字符，并过滤空字符串。
 // 如果输入不含逗号，它将返回一个包含修剪后原字符串的单元素切片（除非原字符串修剪后为空）。
@@ -29,5 +31,6 @@ func FormatCmdsComma(raw []string) []string {
 		parts := SplitComma(item)
 		formatted = append(formatted, parts...)
 	}
+
 	return formatted
 }

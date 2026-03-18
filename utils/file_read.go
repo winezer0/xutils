@@ -82,9 +82,11 @@ func ReadFileToList(input string, ignoreBlanks, cleanUnprint bool) ([]string, er
 
 	var lines []string
 	scanner := bufio.NewScanner(file)
-	// 增加Buffer大小以防行过长，虽然一般hash/plain不会太长
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
+
+	// 设置较大的缓冲区以防止 token too long 错误
+	const maxCapacity = 10 * 1024 * 1024 // 10MB
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
