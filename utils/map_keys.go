@@ -5,17 +5,23 @@ import (
 	"unicode"
 )
 
-// GetMapKeys 辅助函数：从 map[string]bool 提取所有 key
+// GetMapKeys 从 map[string]bool 提取所有 key
 // 参数:
 // - m: 输入的映射
+// - sorted: 是否进行排序
 // 返回值:
 // - []string: 映射中所有的键组成的切片
-func GetMapKeys(m map[string]bool) []string {
-	result := make([]string, 0, len(m))
+func GetMapKeys(m map[string][]string, sorted bool) []string {
+	keys := make([]string, 0, len(m))
 	for k := range m {
-		result = append(result, k)
+		keys = append(keys, k)
 	}
-	return result
+
+	if sorted {
+		sort.Strings(keys)
+	}
+
+	return keys
 }
 
 // GetMapSortedKeys 返回给定 map 的所有字符串键，并按指定顺序排序。
