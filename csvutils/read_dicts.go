@@ -28,7 +28,7 @@ func ReadCSVToDicts(csvFile string) ([]string, []map[string]string, error) {
 	}
 
 	headers := records[0]
-	headers = cleanHeaders(headers)
+	headers = fixedHeaders(headers)
 	if len(headers) == 0 {
 		return nil, nil, fmt.Errorf("CSV header is empty")
 	}

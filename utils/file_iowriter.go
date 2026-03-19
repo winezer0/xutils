@@ -24,7 +24,7 @@ func NewFileReceiver(path string) (*FileReceiver, error) {
 		f = os.Stdout
 	} else {
 		// 使用 O_APPEND 模式打开文件，如果文件不存在则创建
-		f, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err = os.OpenFile(path, ParseFlagFromMode("a+"), 0644)
 		if err != nil {
 			return nil, fmt.Errorf("Unable to create the output file %s: %v", path, err)
 		}

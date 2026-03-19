@@ -38,7 +38,7 @@ func DeduplicateFile(filePath string) error {
 	}
 
 	// 覆盖写入
-	outFile, err := os.OpenFile(filePath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+	outFile, err := os.OpenFile(filePath, ParseFlagFromMode("w+"), 0644)
 	if err != nil {
 		return err
 	}

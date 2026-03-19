@@ -12,7 +12,7 @@ func AppendLines(filePath string, newLines []string) error {
 	}
 
 	// 追加写入 (a+ 模式)
-	outFile, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	outFile, err := os.OpenFile(filePath, ParseFlagFromMode("a+"), 0644)
 	if err != nil {
 		return err
 	}

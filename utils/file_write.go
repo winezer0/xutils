@@ -42,12 +42,8 @@ func WriteLine(filename, line string, overwrite bool) error {
 	// 自动在内容末尾添加换行符(确保每行独立)
 	content := line + "\n"
 	// 确定文件打开模式
-	flag := os.O_WRONLY | os.O_CREATE // 基础模式：可写 + 不存在则创建
-	if overwrite {
-		flag |= os.O_TRUNC // 覆盖模式：清空原有内容
-	} else {
-		flag |= os.O_APPEND // 追加模式：在末尾添加
-	}
+	flag := ParseFlagFromOver(overwrite)
+
 	// 打开文件(权限：644 表示 owner 可读写，其他可读取)
 	file, err := os.OpenFile(filename, flag, 0644)
 	if err != nil {
@@ -68,12 +64,8 @@ func WriteLine(filename, line string, overwrite bool) error {
 func WriteLines(filename string, lines []string, overwrite bool) error {
 	EnsureDir(filename, true)
 	// 确定文件打开模式
-	flag := os.O_WRONLY | os.O_CREATE // 基础模式：可写 + 不存在则创建
-	if overwrite {
-		flag |= os.O_TRUNC // 覆盖模式：清空原有内容
-	} else {
-		flag |= os.O_APPEND // 追加模式：在末尾添加
-	}
+	flag := ParseFlagFromOver(overwrite)
+
 	// 打开文件
 	file, err := os.OpenFile(filename, flag, 0644)
 	if err != nil {
@@ -100,7 +92,7 @@ func WriteBytes(path string, data []byte) error {
 	if err := EnsureDir(path, true); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(path, ParseFlagFromMode("w+"), 0644)
 
 	if err != nil {
 		return err
