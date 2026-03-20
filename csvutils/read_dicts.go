@@ -1,22 +1,22 @@
 package csvutils
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 )
 
-// ReadCSVToDicts 读取 CSV 文件并返回[]string, []map[string]string
-// 第一行为 header，后续每行为一条记录
-func ReadCSVToDicts(csvFile string) ([]string, []map[string]string, error) {
-	separator, _ := DetectCSVDelimiter(csvFile)
-	file, err := os.Open(csvFile)
+// readCSVToDicts 从 io.Reader 读取 CSV 并返回[]string, []map[string]string（内部使用）
+func readCSVToDicts(r io.Reader, separator rune) ([]string, []map[string]string, error) {
+	buf := &bytes.Buffer{}
+	_, err := io.Copy(buf, r)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open file: %w", err)
+		return nil, nil, fmt.Errorf("failed to copy reader: %w", err)
 	}
-	defer file.Close()
 
-	reader := csv.NewReader(file)
+	reader := csv.NewReader(bytes.NewReader(buf.Bytes()))
 	reader.Comma = separator
 	records, err := reader.ReadAll()
 	if err != nil {
@@ -61,4 +61,32 @@ func ReadCSVToDicts(csvFile string) ([]string, []map[string]string, error) {
 	}
 
 	return headers, dicts, nil
+}
+
+// ReadCSVToDicts 读取 CSV 文件并返回[]string, []map[string]string
+// 第一行为 header，后续每行为一条记录
+func ReadCSVToDicts(csvFile string) ([]string, []map[string]string, error) {
+	file, err := os.Open(csvFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	separator, err := DetectCSVDelimiter(csvFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to detect delimiter: %w", err)
+	}
+
+	return readCSVToDicts(file, separator)
+}
+
+// ReadCSVBytesToDicts 从字节切片读取 CSV 内容并返回[]string, []map[string]string
+// 第一行为 header，后续每行为一条记录
+func ReadCSVBytesToDicts(csvBytes []byte) ([]string, []map[string]string, error) {
+	separator, err := DetectCSVBytesDelimiter(csvBytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to detect delimiter: %w", err)
+	}
+
+	return readCSVToDicts(bytes.NewReader(csvBytes), separator)
 }
