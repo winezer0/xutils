@@ -62,9 +62,9 @@ func NewCSVIterator(filePath string, delimiter rune, skipHeader bool, convertTyp
 			}
 			return nil, fmt.Errorf("read header failed: %w", err)
 		}
-		iter.header = fixedHeaders(row)
+		iter.header = FixedHeaders(row)
 	} else {
-		iter.header = genDefaultHeader(0) // 首次读取时确定列数
+		iter.header = GenDefaultHeaders(0) // 首次读取时确定列数
 	}
 
 	return iter, nil
@@ -89,12 +89,12 @@ func (iter *CSVIterator) Next() map[string]interface{} {
 
 	// 首次读取确定默认表头（无表头场景）
 	if len(iter.header) == 0 {
-		iter.header = genDefaultHeader(len(row))
+		iter.header = GenDefaultHeaders(len(row))
 	}
 
 	iter.lineNum++
 	// 行数据转字典
-	return rowToDict(row, iter.header, iter.convertType)
+	return RowDataToDict(row, iter.header, iter.convertType)
 }
 
 // Error 返回迭代过程中的错误

@@ -84,12 +84,3 @@ func ReadCSV2Rows(filePath string, delimiter rune, skipRows int) (header []strin
 
 	return header, rows, nil
 }
-
-// 简化封装（不变）
-func ReadCSV2RowsWithComma(filePath string, skipRows int) (header []string, rows [][]string, err error) {
-	return ReadCSV2Rows(filePath, ',', skipRows)
-}
-
-func ReadCSV2RowsWithTab(filePath string, skipRows int) (header []string, rows [][]string, err error) {
-	return ReadCSV2Rows(filePath, '\t', skipRows)
-}
