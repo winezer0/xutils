@@ -17,7 +17,7 @@ func TestCSVIterator_ReadAll(t *testing.T) {
 		"3,Carol\n"
 	filePath := makeTempCSV(t, "iter.csv", csv)
 
-	iter, err := NewCSVIterator(filePath, ',', true, false)
+	iter, err := NewCSVIterator(filePath, ',', false)
 	if err != nil {
 		t.Fatalf("new iterator failed: %v", err)
 	}
@@ -58,7 +58,7 @@ func ExampleCSVIterator() {
 		"2,Bob,85\n"
 	path := filepath.Join(os.TempDir(), "example_iter.csv")
 	_ = os.WriteFile(path, []byte(csv), 0644)
-	iter, _ := NewCSVIterator(path, ',', true, false)
+	iter, _ := NewCSVIterator(path, ',', false)
 	defer iter.Close()
 	count := 0
 	for {

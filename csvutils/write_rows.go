@@ -14,7 +14,7 @@ func WriteRowsToCSV(filePATH string, header []string, rows [][]string, delimiter
 		return nil
 	}
 
-	needWriteHeader := shouldWriteHeader(filePATH, header, overwrite, delimiter)
+	needWriteHeader := ShouldWriteHeader(filePATH, header, overwrite, delimiter)
 
 	flag := utils.ParseFlagFromOver(overwrite)
 

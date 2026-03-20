@@ -49,8 +49,8 @@ func WriteDictsToCSV(filePath string, dicts []map[string]interface{}, header []s
 	writer.Comma = delimiter
 	defer writer.Flush()
 
-	// 6. 调用 shouldWriteHeader 判断是否写表头
-	needWriteHeader := shouldWriteHeader(filePath, usedHeader, overwrite, delimiter)
+	// 6. 调用 ShouldWriteHeader 判断是否写表头
+	needWriteHeader := ShouldWriteHeader(filePath, usedHeader, overwrite, delimiter)
 
 	// 7. 写入表头（若需要）
 	if needWriteHeader {

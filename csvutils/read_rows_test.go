@@ -32,7 +32,7 @@ func TestReadCSV2Rows_WithHeader(t *testing.T) {
 	file.Close()
 
 	// 2. 测试 skipRows=1（跳过1行数据，表头仍为第一行）
-	header, rows, err := ReadCSV2Rows(testReadFile, ',', 1)
+	header, rows, err := ReadCSV2RowsWithSkip(testReadFile, ',', 1)
 	if err != nil {
 		t.Fatalf("read csv failed (skipRows=1): %v", err)
 	}
@@ -49,7 +49,7 @@ func TestReadCSV2Rows_WithHeader(t *testing.T) {
 	}
 
 	// 3. 测试 skipRows=0（不跳过数据行，表头=第一行，数据行=2行）
-	header2, rows2, err := ReadCSV2Rows(testReadFile, ',', 0)
+	header2, rows2, err := ReadCSV2RowsWithSkip(testReadFile, ',', 0)
 	if err != nil {
 		t.Fatalf("read csv failed (skipRows=0): %v", err)
 	}
@@ -67,7 +67,7 @@ func TestReadCSV2Rows_WithHeader(t *testing.T) {
 	}
 
 	// 4. 测试 skipRows=2（跳过2行数据，数据行空）
-	header3, rows3, err := ReadCSV2Rows(testReadFile, ',', 2)
+	header3, rows3, err := ReadCSV2RowsWithSkip(testReadFile, ',', 2)
 	if err != nil {
 		t.Fatalf("read csv failed (skipRows=2): %v", err)
 	}
@@ -91,7 +91,7 @@ func TestReadCSV2Rows_EmptyFile(t *testing.T) {
 	}
 	file.Close()
 
-	header, rows, err := ReadCSV2Rows(testReadFile, ',', 0)
+	header, rows, err := ReadCSV2RowsWithSkip(testReadFile, ',', 0)
 	if err == nil {
 		t.Error("expected error for empty file, but got nil")
 	}
