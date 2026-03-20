@@ -16,7 +16,7 @@ import (
 func ReadBigCSVToDictsWithCallback(
 	filePath string,
 	delimiter rune,
-	skipHeader bool,
+	haveHeader bool,
 	convertType bool,
 	callback func(map[string]interface{}) error,
 ) error {
@@ -55,27 +55,21 @@ func ReadBigCSVToDictsWithCallback(
 
 	// 4. 读取表头（逻辑不变）
 	var header []string
-	if skipHeader {
+	if haveHeader {
 		row, err := reader.Read()
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return fmt.Errorf("csv file %s is empty", filePath)
-			}
 			return fmt.Errorf("read header failed: %w", err)
 		}
-		header = fixedHeaders(row)
+		header = FixedHeaders(row)
 	} else {
 		// 无表头时，先读第一行确定列数
 		firstRow, err := reader.Read()
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return fmt.Errorf("csv file %s is empty", filePath)
-			}
 			return fmt.Errorf("read first row failed: %w", err)
 		}
-		header = genDefaultHeader(len(firstRow))
+		header = GenDefaultHeaders(len(firstRow))
 		// 处理第一行数据
-		dict := rowToDict(firstRow, header, convertType)
+		dict := RowDataToDict(firstRow, header, convertType)
 		if err := callback(dict); err != nil {
 			return fmt.Errorf("callback failed at first row: %w", err)
 		}
@@ -97,7 +91,7 @@ func ReadBigCSVToDictsWithCallback(
 
 		lineNum++
 		// 行数据转字典
-		dict := rowToDict(row, header, convertType)
+		dict := RowDataToDict(row, header, convertType)
 		// 调用回调处理
 		if err := callback(dict); err != nil {
 			return fmt.Errorf("callback failed at row %d: %w", lineNum, err)
@@ -125,7 +119,7 @@ func ReadBigCSVWithConsumers(
 	ctx context.Context,
 	filePath string,
 	delimiter rune,
-	skipHeader bool,
+	haveHeader bool,
 	convertType bool,
 	consumerCount int,
 	chanBuffer int,
@@ -186,7 +180,7 @@ func ReadBigCSVWithConsumers(
 		err := ReadBigCSVToDictsWithCallback(
 			filePath,
 			delimiter,
-			skipHeader,
+			haveHeader,
 			convertType,
 			func(dict map[string]interface{}) error {
 				select {

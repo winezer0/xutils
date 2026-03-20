@@ -25,7 +25,7 @@ type CSVIterator struct {
 }
 
 // NewCSVIterator 创建大文件 CSV 迭代器（修复版）
-func NewCSVIterator(filePath string, delimiter rune, skipHeader bool, convertType bool) (*CSVIterator, error) {
+func NewCSVIterator(filePath string, delimiter rune, convertType bool) (*CSVIterator, error) {
 	// 1. 打开文件（保存句柄，用于后续关闭）
 	file, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
 	if err != nil {
@@ -53,20 +53,12 @@ func NewCSVIterator(filePath string, delimiter rune, skipHeader bool, convertTyp
 	}
 
 	// 4. 读取表头
-	if skipHeader {
-		row, err := reader.Read()
-		if err != nil {
-			file.Close() // 读取失败时关闭文件
-			if errors.Is(err, io.EOF) {
-				return nil, fmt.Errorf("csv file %s is empty (no header)", filePath)
-			}
-			return nil, fmt.Errorf("read header failed: %w", err)
-		}
-		iter.header = fixedHeaders(row)
-	} else {
-		iter.header = genDefaultHeader(0) // 首次读取时确定列数
+	row, err := reader.Read()
+	if err != nil {
+		file.Close() // 读取失败时关闭文件
+		return nil, fmt.Errorf("read header failed: %w", err)
 	}
-
+	iter.header = FixedHeaders(row)
 	return iter, nil
 }
 
@@ -89,12 +81,12 @@ func (iter *CSVIterator) Next() map[string]interface{} {
 
 	// 首次读取确定默认表头（无表头场景）
 	if len(iter.header) == 0 {
-		iter.header = genDefaultHeader(len(row))
+		iter.header = GenDefaultHeaders(len(row))
 	}
 
 	iter.lineNum++
 	// 行数据转字典
-	return rowToDict(row, iter.header, iter.convertType)
+	return RowDataToDict(row, iter.header, iter.convertType)
 }
 
 // Error 返回迭代过程中的错误
