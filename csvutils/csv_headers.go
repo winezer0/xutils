@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/winezer0/xutils/utils"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // GetCSVHeaders 读取并解析 CSV 文件的首行作为表头信息。
@@ -43,23 +45,29 @@ func GetCSVHeaders(filePath string, delimiter rune) ([]string, error) {
 	return headers, nil
 }
 
-// GetCSVSHeaders 从所有 CSV 文件中收集所有唯一的头部字段
+// GetCSVSHeaders 从多个 CSV 文件中收集所有唯一的头部字段。
+//
 // 参数说明：
-//   - filePath: CSV 文件的绝对或相对路径。
+//   - csvFiles: CSV 文件路径列表。
 //   - delimiter: CSV 文件的分隔符。如果传入 0，函数将自动尝试检测分隔符。
+//   - addFilenameAsPrefix: 是否将文件名作为表头的前缀。
+//   - 若为 true，表头将变为 "filename:ColumnName"，用于区分不同文件的同名表头。
+//   - 若为 false，表头保持原始列名。
 //
 // 返回值：
-//   - []string: 清洗后的表头字符串切片。
-//   - []error: 执行过程中遇到的错误（如文件打开失败、读取失败）。
-func GetCSVSHeaders(csvFiles []string, delimiter rune) ([]string, []error) {
+//   - []string: 合并并去重后的表头字符串切片。
+//   - []error: 执行过程中遇到的错误列表（如文件打开失败、读取失败等）。
+func GetCSVSHeaders(csvFiles []string, delimiter rune, addPrefix bool) ([]string, []error) {
 	seenHeaders := make(map[string]bool)
 	allHeaders := make([]string, 0)
 	var errors []error
 
 	for _, filePath := range csvFiles {
-		// 1. 独立处理每个文件的分隔符
-		// 如果外部传入 0，每个文件都会独立调用 DetectCSVDelimiter
-		// 如果外部传入具体字符（如 ','），则所有文件强制使用该分隔符
+		// 1. 获取纯文件名（例如从 "/path/to/data.csv" 获取 "data"）
+		baseName := filepath.Base(filePath)
+		fileName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
+
+		// 2. 独立处理每个文件的分隔符
 		currentDelimiter := delimiter
 		if currentDelimiter == 0 {
 			d, err := DetectCSVDelimiter(filePath)
@@ -70,19 +78,25 @@ func GetCSVSHeaders(csvFiles []string, delimiter rune) ([]string, []error) {
 			currentDelimiter = d
 		}
 
-		// 2. 获取表头
+		// 3. 获取表头
 		headers, err := GetCSVHeaders(filePath, currentDelimiter)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("read headers failed for %s: %v", filePath, err))
 			continue // 跳过此文件，继续处理下一个
 		}
 
-		// 3. 去重与合并
+		// 4. 去重与合并
 		for _, header := range headers {
-			key := header
-			if !seenHeaders[key] {
-				seenHeaders[key] = true
-				allHeaders = append(allHeaders, header) // 保留原始格式的输出
+			// 如果开启前缀模式，修改表头名称
+			finalHeader := header
+			if addPrefix {
+				finalHeader = fmt.Sprintf("%s.%s", fileName, header)
+			}
+
+			// 基于最终生成的表头名称进行去重
+			if !seenHeaders[finalHeader] {
+				seenHeaders[finalHeader] = true
+				allHeaders = append(allHeaders, finalHeader)
 			}
 		}
 	}
