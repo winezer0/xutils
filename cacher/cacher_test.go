@@ -1,6 +1,7 @@
 package cacher
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -169,7 +170,7 @@ func TestCacheManager_MaxSize(t *testing.T) {
 	cacheFile := filepath.Join(tmpDir, "test_cache_maxsize.json")
 	defer os.Remove(cacheFile)
 
-	cm := NewCacheManagerWithOptions(cacheFile, 10, 1)
+	cm := NewCacheManagerWithOptions(cacheFile, 10, 1, 10*1024*1024)
 	defer func() {
 		if err := cm.Close(); err != nil {
 			t.Errorf("Close failed: %v", err)
@@ -231,5 +232,97 @@ func TestCacheManager_GetAs_ErrorCases(t *testing.T) {
 	}
 	if ok, err := cm.GetAs("k1", "notptr"); !errors.Is(err, ErrCacheInvalidValue) || ok {
 		t.Errorf("Expected ErrCacheInvalidValue, got %v", err)
+	}
+}
+
+func TestCacheManager_MaxDataSize(t *testing.T) {
+	tmpDir := os.TempDir()
+	cacheFile := filepath.Join(tmpDir, "test_cache_maxdatasize.json")
+	defer os.Remove(cacheFile)
+
+	// 创建一个小的 maxDataSize 限制（100字节）
+	cm := NewCacheManagerWithOptions(cacheFile, 10, 100, 100)
+	defer func() {
+		if err := cm.Close(); err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	}()
+
+	// 测试添加小数据
+	smallData := "small"
+	if err := cm.Set("small", smallData); err != nil {
+		t.Fatalf("Set small data failed: %v", err)
+	}
+
+	// 测试添加大数据（应该失败）
+	largeData := string(make([]byte, 200)) // 200字节数据
+	if err := cm.Set("large", largeData); !errors.Is(err, ErrCacheFull) {
+		t.Errorf("Expected ErrCacheFull for large data, got %v", err)
+	}
+}
+
+func TestCacheManager_DataSizeCalculation(t *testing.T) {
+	tmpDir := os.TempDir()
+	cacheFile := filepath.Join(tmpDir, "test_cache_datacalculation.json")
+	defer os.Remove(cacheFile)
+
+	cm := NewCacheManager(cacheFile)
+	defer func() {
+		if err := cm.Close(); err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	}()
+
+	// 添加数据
+	data1 := "test1"
+	if err := cm.Set("key1", data1); err != nil {
+		t.Fatalf("Set key1 failed: %v", err)
+	}
+
+	// 更新数据
+	data2 := "test2"
+	if err := cm.Set("key1", data2); err != nil {
+		t.Fatalf("Update key1 failed: %v", err)
+	}
+
+	// 删除数据
+	if err := cm.Del("key1"); err != nil {
+		t.Fatalf("Del key1 failed: %v", err)
+	}
+
+	// 验证删除后数据不存在
+	if _, ok := cm.Get("key1"); ok {
+		t.Error("Expected key1 to be deleted")
+	}
+}
+
+func TestCacheManager_LoadCacheSizeLimit(t *testing.T) {
+	tmpDir := os.TempDir()
+	cacheFile := filepath.Join(tmpDir, "test_cache_loadsize.json")
+	defer os.Remove(cacheFile)
+
+	// 创建一个包含大数据的缓存文件
+	largeData := map[string]interface{}{
+		"large": string(make([]byte, 500)),
+		"small": "test",
+	}
+
+	// 写入文件
+	data, _ := json.Marshal(largeData)
+	if err := os.WriteFile(cacheFile, data, 0644); err != nil {
+		t.Fatalf("Write cache file failed: %v", err)
+	}
+
+	// 使用小的 maxDataSize 加载
+	cm := NewCacheManagerWithOptions(cacheFile, 10, 100, 100)
+	defer func() {
+		if err := cm.Close(); err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	}()
+
+	// 验证缓存被限制
+	if _, ok := cm.Get("large"); ok {
+		t.Error("Expected large data to be removed due to size limit")
 	}
 }

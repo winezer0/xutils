@@ -21,6 +21,8 @@ type CacheManager struct {
 	modified  bool
 
 	maxSize      int
+	maxDataSize  int64 // 最大缓存数据大小（字节）
+	currentSize  int64 // 当前缓存数据大小（字节）
 	saveInterval time.Duration
 	stopChan     chan struct{}
 	waitGroup    sync.WaitGroup
@@ -35,15 +37,18 @@ var (
 )
 
 func NewCacheManager(file string) *CacheManager {
-	return NewCacheManagerWithOptions(file, 10*time.Second, 10000)
+	return NewCacheManagerWithOptions(file, 10*time.Second, 10000, 10*1024*1024) // 默认10MB
 }
 
-func NewCacheManagerWithOptions(file string, saveInterval time.Duration, maxSize int) *CacheManager {
+func NewCacheManagerWithOptions(file string, saveInterval time.Duration, maxSize int, maxDataSize int64) *CacheManager {
 	if saveInterval <= 0 {
 		saveInterval = 10 * time.Second
 	}
 	if maxSize <= 0 {
 		maxSize = 10000
+	}
+	if maxDataSize <= 0 {
+		maxDataSize = 100 * 1024 * 1024 // 默认100MB
 	}
 	m := &CacheManager{
 		cacheFile:    file,
@@ -51,6 +56,8 @@ func NewCacheManagerWithOptions(file string, saveInterval time.Duration, maxSize
 		stopChan:     make(chan struct{}),
 		saveInterval: saveInterval,
 		maxSize:      maxSize,
+		maxDataSize:  maxDataSize,
+		currentSize:  0,
 	}
 
 	if file == "" {
@@ -83,20 +90,52 @@ func (m *CacheManager) LoadCache() error {
 	}
 	if len(data) == 0 {
 		m.cacheData = make(map[string]interface{})
+		m.currentSize = 0
 		return nil
 	}
 	if err := json.Unmarshal(data, &m.cacheData); err != nil {
 		return fmt.Errorf("parse cache json error: %w", err)
 	}
+
+	// 计算当前缓存数据大小
+	m.currentSize = 0
+	for k, v := range m.cacheData {
+		// 估算每个键值对的大小
+		if data, err := json.Marshal(v); err == nil {
+			m.currentSize += int64(len(k) + len(data))
+		}
+	}
+
+	// 检查大小限制
 	if m.maxSize > 0 && len(m.cacheData) > m.maxSize {
 		for k := range m.cacheData {
 			if len(m.cacheData) <= m.maxSize {
 				break
 			}
+			// 移除超出限制的条目
+			if data, err := json.Marshal(m.cacheData[k]); err == nil {
+				m.currentSize -= int64(len(k) + len(data))
+			}
 			delete(m.cacheData, k)
 		}
 		return ErrCacheFull
 	}
+
+	// 检查数据大小限制
+	if m.maxDataSize > 0 && m.currentSize > m.maxDataSize {
+		// 移除一些条目直到大小符合限制
+		for k := range m.cacheData {
+			if m.currentSize <= m.maxDataSize {
+				break
+			}
+			if data, err := json.Marshal(m.cacheData[k]); err == nil {
+				m.currentSize -= int64(len(k) + len(data))
+			}
+			delete(m.cacheData, k)
+		}
+		return ErrCacheFull
+	}
+
 	return nil
 }
 
@@ -111,15 +150,23 @@ func (m *CacheManager) SaveCache() error {
 		return nil
 	}
 
+	// 序列化缓存数据
 	data, err := utils.ToJSONBytes(m.cacheData)
 	if err != nil {
 		return fmt.Errorf("serialize cache data error: %w", err)
 	}
 
+	// 检查序列化后的数据大小
+	if int64(len(data)) > m.maxDataSize {
+		return fmt.Errorf("serialized cache data exceeds max size limit")
+	}
+
+	// 确保目录存在
 	if err := utils.EnsureDir(m.cacheFile, true); err != nil {
 		return fmt.Errorf("ensure cache dir error: %w", err)
 	}
 
+	// 使用临时文件写入，避免写入过程中文件损坏
 	dir := filepath.Dir(m.cacheFile)
 	base := filepath.Base(m.cacheFile)
 	tmpFile, err := os.CreateTemp(dir, base+".tmp-")
@@ -127,30 +174,40 @@ func (m *CacheManager) SaveCache() error {
 		return fmt.Errorf("create temp cache file error: %w", err)
 	}
 	tmpName := tmpFile.Name()
+
+	// 写入数据
 	if _, err = tmpFile.Write(data); err != nil {
 		tmpFile.Close()
 		_ = os.Remove(tmpName)
 		return fmt.Errorf("write temp cache file error: %w", err)
 	}
+
+	// 同步到磁盘
 	if err = tmpFile.Sync(); err != nil {
 		tmpFile.Close()
 		_ = os.Remove(tmpName)
 		return fmt.Errorf("sync temp cache file error: %w", err)
 	}
+
+	// 关闭文件
 	if err = tmpFile.Close(); err != nil {
 		_ = os.Remove(tmpName)
 		return fmt.Errorf("close temp cache file error: %w", err)
 	}
+
+	// 替换旧文件
 	if utils.FileExists(m.cacheFile) {
 		if err := os.Remove(m.cacheFile); err != nil {
 			_ = os.Remove(tmpName)
 			return fmt.Errorf("remove old cache file error: %w", err)
 		}
 	}
+
 	if err := os.Rename(tmpName, m.cacheFile); err != nil {
 		_ = os.Remove(tmpName)
 		return fmt.Errorf("replace cache file error: %w", err)
 	}
+
 	m.modified = false
 	return nil
 }
@@ -195,6 +252,7 @@ func (m *CacheManager) Clear() error {
 
 	// 清空内存
 	m.cacheData = make(map[string]interface{})
+	m.currentSize = 0
 
 	// 删除磁盘文件
 	if utils.FileExists(m.cacheFile) {
@@ -217,14 +275,33 @@ func (m *CacheManager) Set(key string, value interface{}) error {
 	m.cacheMux.Lock()
 	defer m.cacheMux.Unlock()
 
+	// 计算新值的大小
+	valueSize := int64(0)
+	if data, err := json.Marshal(value); err == nil {
+		valueSize = int64(len(key) + len(data))
+	} else {
+		return fmt.Errorf("marshal value error: %w", err)
+	}
+
 	if cur, exists := m.cacheData[key]; exists {
 		if reflect.DeepEqual(cur, value) {
 			return nil
 		}
+		// 减去旧值的大小
+		if oldData, err := json.Marshal(cur); err == nil {
+			m.currentSize -= int64(len(key) + len(oldData))
+		}
 	} else if m.maxSize > 0 && len(m.cacheData) >= m.maxSize {
 		return ErrCacheFull
 	}
+
+	// 检查数据大小限制
+	if m.maxDataSize > 0 && m.currentSize+valueSize > m.maxDataSize {
+		return ErrCacheFull
+	}
+
 	m.cacheData[key] = value
+	m.currentSize += valueSize
 	m.modified = true
 	return nil
 }
@@ -237,11 +314,16 @@ func (m *CacheManager) Del(key string) error {
 	m.cacheMux.Lock()
 	defer m.cacheMux.Unlock()
 
-	if _, exists := m.cacheData[key]; !exists {
+	if cur, exists := m.cacheData[key]; !exists {
 		return ErrCacheKeyNotFound
+	} else {
+		// 减去被删除值的大小
+		if data, err := json.Marshal(cur); err == nil {
+			m.currentSize -= int64(len(key) + len(data))
+		}
+		delete(m.cacheData, key)
+		m.modified = true
 	}
-	delete(m.cacheData, key)
-	m.modified = true
 	return nil
 }
 

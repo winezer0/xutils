@@ -29,6 +29,10 @@ type LogConfig struct {
 	Level         string // 日志级别: debug/info/warn/error/fatal
 	LogFile       string // 日志文件路径，空串表示不输出到文件
 	ConsoleFormat string // 控制台格式: 空串或"off"表示关闭，支持"T(时间)L(级别)C(调用者)M(消息)"
+	MaxSize       int    // 单个日志文件文件最大大小
+	MaxBackups    int    // 最多保留几个日志文件备份
+	MaxAge        int    // 日志文件保留多少天
+	Compress      bool   // 日志备份文件是否压缩
 }
 
 // NewLogConfig 创建日志配置实例，提供默认值
@@ -43,6 +47,10 @@ func NewLogConfig(level, logFile, consoleFormat string) LogConfig {
 		Level:         level,
 		LogFile:       logFile,
 		ConsoleFormat: consoleFormat,
+		MaxSize:       100,  // 单个文件最大100MB
+		MaxBackups:    10,   // 最多保留10个备份
+		MaxAge:        30,   // 保留30天
+		Compress:      true, // 压缩备份文件
 	}
 }
 
@@ -82,17 +90,17 @@ func (l *Logger) init() error {
 
 	// 文件输出(带日志轮转，正确配置时间格式)
 	if l.config.LogFile != "" {
-		if err := EnsureDir(l.config.LogFile); err != nil {
+		if err := ensureDir(l.config.LogFile); err != nil {
 			return fmt.Errorf("failed to create log dir: %w", err)
 		}
 
 		// 日志轮转配置
 		rotator := &lumberjack.Logger{
 			Filename:   l.config.LogFile,
-			MaxSize:    10,   // 单个文件最大100MB
-			MaxBackups: 10,   // 最多保留10个备份
-			MaxAge:     10,   // 保留30天
-			Compress:   true, // 压缩备份文件
+			MaxSize:    l.config.MaxSize,    // 单个文件最大100MB
+			MaxBackups: l.config.MaxBackups, // 最多保留10个备份
+			MaxAge:     l.config.MaxAge,     // 保留30天
+			Compress:   l.config.Compress,   // 压缩备份文件
 		}
 
 		// 配置文件日志编码器(含时间格式)
@@ -401,8 +409,8 @@ func newConsoleEncoder(format string) zapcore.Encoder {
 	return zapcore.NewConsoleEncoder(cfg)
 }
 
-// 确保目录存在
-func EnsureDir(filePath string) error {
+// ensureDir 确保目录存在
+func ensureDir(filePath string) error {
 	dir := filepath.Dir(filePath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return os.MkdirAll(dir, 0755)

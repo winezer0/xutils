@@ -5,23 +5,19 @@ import (
 	"unicode"
 )
 
-// GetMapKeys 从 map[string]bool 提取所有 key
+// GetMapKeys 泛型辅助函数：从任意 value 类型的 map[string]V 提取所有 key
+// 类型参数:
+// - V: map 中 value 的类型
 // 参数:
 // - m: 输入的映射
-// - sorted: 是否进行排序
 // 返回值:
 // - []string: 映射中所有的键组成的切片
-func GetMapKeys(m map[string][]string, sorted bool) []string {
-	keys := make([]string, 0, len(m))
+func GetMapKeys[V any](m map[string]V) []string {
+	result := make([]string, 0, len(m))
 	for k := range m {
-		keys = append(keys, k)
+		result = append(result, k)
 	}
-
-	if sorted {
-		sort.Strings(keys)
-	}
-
-	return keys
+	return result
 }
 
 // GetMapSortedKeys 返回给定 map 的所有字符串键，并按指定顺序排序。
