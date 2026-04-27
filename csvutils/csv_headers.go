@@ -209,8 +209,14 @@ func ShouldWriteHeader(file string, header []string, overwrite bool, delimiter r
 		return true
 	}
 
-	// csv头部顺序不对，写入，避免用户找不到有效头部开始行
-	if !utils.SliceEqualStrict(oldHeaders, header) {
+	// csv头部长度不对
+	if len(oldHeaders) != len(header) {
+		fmt.Printf("file %s: header mismatch (old=%v, new=%v), will write new header\n", file, len(oldHeaders), len(header))
+		return true
+	}
+
+	// csv头部顺序不对，写入，避免用户找不到有效头部开始行 清洗新表头，确保与旧表头使用相同的修复规则
+	if !utils.SliceEqualStrict(RepairHeaders(oldHeaders), RepairHeaders(header)) {
 		fmt.Printf("file %s: header mismatch (old=%v, new=%v), will write new header\n", file, oldHeaders, header)
 		return true
 	}
