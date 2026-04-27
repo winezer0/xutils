@@ -13,18 +13,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// -------------------------- 跨包全局日志器(按需定义) --------------------------
-// 定义需要跨包使用的全局日志器，建议用明确的语义化命名(避免泛称如"newLogger")
-//var (
-//	// APILogger API模块专用日志器(供所有包调用)
-//	APILogger *Logger
-// 第一步：优先初始化全局日志器(必须在所有业务逻辑前) 程序退出时关闭所有日志器，刷新缓冲区
-//if err := log.InitGlobalLoggers(); err != nil { panic(fmt.Sprintf("init global loggers failed: %+v", err)) }
-//defer log.CloseAll()
-
-// -------------------------- 配置定义 --------------------------
-
-// LogConfig 日志配置结构体，同时支持新老版本使用
+// LogConfig 日志配置结构体
 type LogConfig struct {
 	Level         string // 日志级别: debug/info/warn/error/fatal
 	LogFile       string // 日志文件路径，空串表示不输出到文件
@@ -49,6 +38,19 @@ func NewLogConfig(level, logFile, consoleFormat string) LogConfig {
 		ConsoleFormat: consoleFormat,
 		MaxSize:       100,  // 单个文件最大100MB
 		MaxBackups:    10,   // 最多保留10个备份
+		MaxAge:        30,   // 保留30天
+		Compress:      true, // 压缩备份文件
+	}
+}
+
+// NewLogConfigEmpty 创建日志配置实例，提供全部默认值
+func NewLogConfigEmpty() LogConfig {
+	return LogConfig{
+		Level:         "info",
+		LogFile:       "",
+		ConsoleFormat: "LCM",
+		MaxSize:       100,  // 单个文件最大100MB
+		MaxBackups:    3,    // 最多保留10个备份
 		MaxAge:        30,   // 保留30天
 		Compress:      true, // 压缩备份文件
 	}
@@ -227,6 +229,45 @@ func (l *Logger) Sync() error {
 	return nil
 }
 
+// -------------------------- 工具函数 --------------------------
+
+// 创建控制台编码器
+func newConsoleEncoder(format string) zapcore.Encoder {
+	cfg := zapcore.EncoderConfig{
+		TimeKey:      "T",
+		LevelKey:     "L",
+		CallerKey:    "C",
+		MessageKey:   "M",
+		EncodeTime:   zapcore.ISO8601TimeEncoder,
+		EncodeLevel:  zapcore.CapitalLevelEncoder,
+		EncodeCaller: zapcore.ShortCallerEncoder,
+	}
+
+	if !strings.Contains(format, "T") {
+		cfg.TimeKey = ""
+	}
+	if !strings.Contains(format, "L") {
+		cfg.LevelKey = ""
+	}
+	if !strings.Contains(format, "C") {
+		cfg.CallerKey = ""
+	}
+	if !strings.Contains(format, "M") {
+		cfg.MessageKey = ""
+	}
+
+	return zapcore.NewConsoleEncoder(cfg)
+}
+
+// ensureDir 确保目录存在
+func ensureDir(filePath string) error {
+	dir := filepath.Dir(filePath)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return os.MkdirAll(dir, 0755)
+	}
+	return nil
+}
+
 // -------------------------- 日志器管理器 --------------------------
 
 type loggerManager struct {
@@ -299,9 +340,8 @@ func CloseAll() error {
 	return errors.Join(errList...)
 }
 
-// -------------------------- 旧版本兼容层 --------------------------
-
-var defaultLogger *Logger // 旧版本默认日志器
+var defaultLogger *Logger       // 旧版本默认日志器
+var defaultLoggerOnce sync.Once // 用于确保 defaultLogger 只初始化一次
 
 // InitLogger 旧版本初始化函数，兼容老代码
 func InitLogger(config LogConfig) error {
@@ -310,110 +350,91 @@ func InitLogger(config LogConfig) error {
 	return err
 }
 
-// 旧版本全局日志函数，直接转发到default日志器
-func Debugf(template string, args ...interface{}) {
-	if defaultLogger != nil {
-		defaultLogger.Debugf(template, args...)
-	}
-}
-
-func Infof(template string, args ...interface{}) {
-	if defaultLogger != nil {
-		defaultLogger.Infof(template, args...)
-	}
-}
-
-func Warnf(template string, args ...interface{}) {
-	if defaultLogger != nil {
-		defaultLogger.Warnf(template, args...)
-	}
-}
-
-func Errorf(template string, args ...interface{}) {
-	if defaultLogger != nil {
-		defaultLogger.Errorf(template, args...)
-	}
-}
-
-func Fatalf(template string, args ...interface{}) {
-	if defaultLogger != nil {
-		defaultLogger.Fatalf(template, args...)
-	}
-}
-
-func Debug(args ...interface{}) {
-	if defaultLogger != nil {
-		defaultLogger.Debug(args...)
-	}
-}
-
-func Info(args ...interface{}) {
-	if defaultLogger != nil {
-		defaultLogger.Info(args...)
-	}
-}
-
-func Warn(args ...interface{}) {
-	if defaultLogger != nil {
-		defaultLogger.Warn(args...)
-	}
-}
-
-func Error(args ...interface{}) {
-	if defaultLogger != nil {
-		defaultLogger.Error(args...)
-	}
-}
-
-func Fatal(args ...interface{}) {
-	if defaultLogger != nil {
-		defaultLogger.Fatal(args...)
-	}
+// ensureDefaultLogger 确保 defaultLogger 已初始化，如果未初始化则自动初始化（线程安全）
+func ensureDefaultLogger() {
+	defaultLoggerOnce.Do(func() {
+		_ = InitLogger(NewLogConfigEmpty())
+	})
 }
 
 // Sync 旧版本全局刷新函数
 func Sync() error {
+	ensureDefaultLogger()
 	if defaultLogger != nil {
 		return defaultLogger.Sync()
 	}
 	return nil
 }
 
-// -------------------------- 工具函数 --------------------------
+// -------------------------- 日志器管理器 --------------------------
 
-// 创建控制台编码器
-func newConsoleEncoder(format string) zapcore.Encoder {
-	cfg := zapcore.EncoderConfig{
-		TimeKey:      "T",
-		LevelKey:     "L",
-		CallerKey:    "C",
-		MessageKey:   "M",
-		EncodeTime:   zapcore.ISO8601TimeEncoder,
-		EncodeLevel:  zapcore.CapitalLevelEncoder,
-		EncodeCaller: zapcore.ShortCallerEncoder,
+// 旧版本全局日志函数，直接转发到 default 日志器
+func Debugf(template string, args ...interface{}) {
+	ensureDefaultLogger()
+	if defaultLogger != nil {
+		defaultLogger.Debugf(template, args...)
 	}
-
-	if !strings.Contains(format, "T") {
-		cfg.TimeKey = ""
-	}
-	if !strings.Contains(format, "L") {
-		cfg.LevelKey = ""
-	}
-	if !strings.Contains(format, "C") {
-		cfg.CallerKey = ""
-	}
-	if !strings.Contains(format, "M") {
-		cfg.MessageKey = ""
-	}
-
-	return zapcore.NewConsoleEncoder(cfg)
 }
 
-// ensureDir 确保目录存在
-func ensureDir(filePath string) error {
-	dir := filepath.Dir(filePath)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return os.MkdirAll(dir, 0755)
+func Infof(template string, args ...interface{}) {
+	ensureDefaultLogger()
+	if defaultLogger != nil {
+		defaultLogger.Infof(template, args...)
 	}
-	return nil
+}
+
+func Warnf(template string, args ...interface{}) {
+	ensureDefaultLogger()
+	if defaultLogger != nil {
+		defaultLogger.Warnf(template, args...)
+	}
+}
+
+func Errorf(template string, args ...interface{}) {
+	ensureDefaultLogger()
+	if defaultLogger != nil {
+		defaultLogger.Errorf(template, args...)
+	}
+}
+
+func Fatalf(template string, args ...interface{}) {
+	ensureDefaultLogger()
+	if defaultLogger != nil {
+		defaultLogger.Fatalf(template, args...)
+	}
+}
+
+func Debug(args ...interface{}) {
+	ensureDefaultLogger()
+	if defaultLogger != nil {
+		defaultLogger.Debug(args...)
+	}
+}
+
+func Info(args ...interface{}) {
+	ensureDefaultLogger()
+	if defaultLogger != nil {
+		defaultLogger.Info(args...)
+	}
+}
+
+func Warn(args ...interface{}) {
+	ensureDefaultLogger()
+	if defaultLogger != nil {
+		defaultLogger.Warn(args...)
+	}
+}
+
+func Error(args ...interface{}) {
+	ensureDefaultLogger()
+	if defaultLogger != nil {
+		defaultLogger.Error(args...)
+	}
+}
+
+func Fatal(args ...interface{}) {
+	ensureDefaultLogger()
+	if defaultLogger != nil {
+		defaultLogger.Fatal(args...)
+	}
 }
