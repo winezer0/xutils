@@ -14,9 +14,15 @@ func TruncateString(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// TruncateBody 保留前n个字符，超出部分省略
-func TruncateBody(b []byte, maxLen int) string {
-	return TruncateString(string(b), maxLen)
+// TruncateBytes 对字节数组内容进行截断，保留前 maxLen 个字符，超出部分显示 ...
+// 不依赖 TruncateString，独立实现
+func TruncateBytes(b []byte, maxLen int) string {
+	// 长度合法直接返回字符串
+	if len(b) <= maxLen {
+		return string(b)
+	}
+	// 超出长度：截取前 maxLen-3 个字节 + 省略号
+	return string(b[:maxLen-3]) + "..."
 }
 
 // ToStr 将任意类型 v 转换为字符串。

@@ -45,21 +45,12 @@ func GetCSVHeaders(filePath string, delimiter rune) ([]string, error) {
 	return headers, nil
 }
 
-// GetCSVSHeaders 从多个 CSV 文件中收集所有唯一的头部字段。
-//
-// 参数说明：
-//   - csvFiles: CSV 文件路径列表。
-//   - delimiter: CSV 文件的分隔符。如果传入 0，函数将自动尝试检测分隔符。
-//   - addFilenameAsPrefix: 是否将文件名作为表头的前缀。
-//   - 若为 true，表头将变为 "filename:ColumnName"，用于区分不同文件的同名表头。
-//   - 若为 false，表头保持原始列名。
-//
-// 返回值：
-//   - []string: 合并并去重后的表头字符串切片。
-//   - []error: 执行过程中遇到的错误列表（如文件打开失败、读取失败等）。
-func GetCSVSHeaders(csvFiles []string, delimiter rune, addPrefix bool) ([]string, []error) {
-	seenHeaders := make(map[string]bool)
-	allHeaders := make([]string, 0)
+// GetCSVSHeadersMap 从多个 CSV 文件中收集每个文件的头部字段
+// 返回：map[文件名][]表头、错误列表
+// 不使用任何自定义类型，全部原生 Go 类型
+func GetCSVSHeadersMap(csvFiles []string, delimiter rune, addPrefix bool) (map[string][]string, []error) {
+	// 直接使用原生 map[string][]string
+	fileHeaderMap := make(map[string][]string)
 	var errors []error
 
 	for _, filePath := range csvFiles {
@@ -73,30 +64,52 @@ func GetCSVSHeaders(csvFiles []string, delimiter rune, addPrefix bool) ([]string
 			d, err := DetectCSVDelimiter(filePath)
 			if err != nil {
 				errors = append(errors, fmt.Errorf("detect delimiter failed for %s: %v", filePath, err))
-				continue // 跳过此文件
+				continue
 			}
 			currentDelimiter = d
 		}
 
-		// 3. 获取表头
+		// 3. 获取原始表头
 		headers, err := GetCSVHeaders(filePath, currentDelimiter)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("read headers failed for %s: %v", filePath, err))
-			continue // 跳过此文件，继续处理下一个
+			continue
 		}
 
-		// 4. 去重与合并
-		for _, header := range headers {
-			// 如果开启前缀模式，修改表头名称
-			finalHeader := header
-			if addPrefix {
-				finalHeader = fmt.Sprintf("%s.%s", fileName, header)
+		// 4. 如果需要添加前缀，处理每一个表头
+		var finalHeaders []string
+		if addPrefix {
+			finalHeaders = make([]string, 0, len(headers))
+			for _, header := range headers {
+				prefixed := fmt.Sprintf("%s.%s", fileName, header)
+				finalHeaders = append(finalHeaders, prefixed)
 			}
+		} else {
+			finalHeaders = headers
+		}
 
-			// 基于最终生成的表头名称进行去重
-			if !seenHeaders[finalHeader] {
-				seenHeaders[finalHeader] = true
-				allHeaders = append(allHeaders, finalHeader)
+		// 5. 存入原生 map：key=文件名，value=处理后的表头
+		fileHeaderMap[fileName] = finalHeaders
+	}
+
+	return fileHeaderMap, errors
+}
+
+// GetCSVSHeaders 从多个 CSV 文件中收集所有唯一的头部字段。
+// 【重构版：内部复用 GetCSVSHeadersMap，无重复代码】
+func GetCSVSHeaders(csvFiles []string, delimiter rune, addPrefix bool) ([]string, []error) {
+	// 1. 调用 map 版本获取所有文件的表头
+	headerMap, errors := GetCSVSHeadersMap(csvFiles, delimiter, addPrefix)
+
+	// 2. 遍历 map，收集并去重所有表头
+	seenHeaders := make(map[string]bool)
+	var allHeaders []string
+
+	for _, headers := range headerMap {
+		for _, header := range headers {
+			if !seenHeaders[header] {
+				seenHeaders[header] = true
+				allHeaders = append(allHeaders, header)
 			}
 		}
 	}
@@ -223,4 +236,29 @@ func ShouldWriteHeader(file string, header []string, overwrite bool, delimiter r
 
 	// 其他情况下不需要写入头部
 	return false
+}
+
+// FindIdenticalHeaders 传入 map[string][]string
+// 返回：出现次数 >=2 的header（同一个文件内重复也累计次数）
+func FindIdenticalHeaders(allHeaders map[string][]string) []string {
+	// 统计所有 header 出现的总次数
+	headerCount := make(map[string]int)
+
+	// 遍历每个文件的表头
+	for _, headers := range allHeaders {
+		// 不去重！重复 header 直接累加计数
+		for _, h := range headers {
+			headerCount[h]++
+		}
+	}
+
+	// 收集出现次数 >= 2 的 header
+	var commonHeaders []string
+	for header, count := range headerCount {
+		if count >= 2 {
+			commonHeaders = append(commonHeaders, header)
+		}
+	}
+
+	return commonHeaders
 }
