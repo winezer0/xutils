@@ -15,6 +15,11 @@ func InitDefaultLogger(config LogConfig) error {
 	return err
 }
 
+// NewDefaultLogger 旧版本初始化函数，兼容老代码
+func NewDefaultLogger(level, logFile, consoleFormat string) error {
+	return InitDefaultLogger(NewLogConfig(level, logFile, consoleFormat))
+}
+
 // ensureDefaultLogger 确保 defaultLogger 已初始化，如果未初始化则自动初始化（线程安全）
 func ensureDefaultLogger() {
 	if defaultLogger == nil {

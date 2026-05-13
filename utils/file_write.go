@@ -2,9 +2,7 @@ package utils
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 )
 
@@ -88,16 +86,33 @@ func WriteLines(filename string, lines []string, overwrite bool) error {
 }
 
 // WriteBytes 写入二进制数据到文件
-func WriteBytes(path string, data []byte) error {
+func WriteBytes(path string, data []byte, overwrite bool) error {
 	if err := EnsureDir(path, true); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, ParseFlagFromMode("w+"), 0644)
-
+	// 确定文件打开模式
+	flag := ParseFlagFromOver(overwrite)
+	f, err := os.OpenFile(path, flag, 0644)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	_, err = io.Copy(f, bytes.NewReader(data))
+
+	// 写入数据
+	_, err = f.Write(data) // 直接写入，比 io.Copy 更简洁
+	if err != nil {
+		// 写入失败，关闭文件并返回错误
+		_ = f.Close()
+		return err
+	}
+
+	// 强制刷新缓冲区到磁盘（保证数据落地）
+	err = f.Sync()
+	if err != nil {
+		_ = f.Close()
+		return err
+	}
+
+	// 关闭文件，同时检查关闭错误
+	err = f.Close()
 	return err
 }
