@@ -4,14 +4,17 @@ import "strings"
 
 // StringsReplacer 移除或替换字符串中的特定字符。
 // 该函数接受一个替换规则映射，允许用户自定义需要替换的字符及其目标字符。
-// 同时，它会自动处理连续的空格，确保结果中不包含多余的空格。
 //
 // 参数说明：
-//   - s: 原始字符串。
-//   - rules: 替换规则 map，key 为旧字符（如 "\n"），value 为新字符（如 " "）。
 //
-// 返回值：
-//   - string: 处理后的字符串。
+//	s: 原始字符串
+//	rules: 替换规则 map，key 为要替换的字符串，value 为替换后的内容
+//
+// 使用示例：
+//
+//	移除指定字符（替换为空） StringsReplacer("a-b*c#d", map[string]string{"-": "", "*": "", "#": ""})
+//
+// 返回值：处理后的字符串
 func StringsReplacer(s string, rules map[string]string) string {
 	if s == "" {
 		return s

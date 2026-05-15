@@ -2,7 +2,6 @@ package utils
 
 import (
 	"sort"
-	"unicode"
 )
 
 // GetMapKeys 泛型辅助函数：从任意 value 类型的 map[string]V 提取所有 key
@@ -25,17 +24,12 @@ func GetMapKeys[V any](m map[string]V) []string {
 // 参数 ascending 控制排序方向：true 表示升序（字典序），false 表示降序。
 // 返回值是一个包含排序后键的字符串切片。
 func GetMapSortedKeys[V any](m map[string]V, ascending bool) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-
+	keys := GetMapKeys(m)
 	if ascending {
 		sort.Strings(keys)
 	} else {
 		sort.Sort(sort.Reverse(sort.StringSlice(keys)))
 	}
-
 	return keys
 }
 
@@ -44,62 +38,6 @@ func GetMapSortedKeys[V any](m map[string]V, ascending bool) []string {
 // 参数 asc 控制排序方向：true 表示升序（字典序），false 表示降序。
 // 返回值是一个包含排序后键的字符串切片。
 func GetMapKeysWithNaturalSorted[V any](m map[string]V, asc bool) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-
-	if asc {
-		sort.Slice(keys, func(i, j int) bool {
-			return naturalLess(keys[i], keys[j])
-		})
-	} else {
-		sort.Slice(keys, func(i, j int) bool {
-			return naturalLess(keys[j], keys[i]) // 注意：反转比较
-		})
-	}
-
-	return keys
-}
-
-// naturalLess 比较两个字符串，按自然顺序（数字按数值比）
-func naturalLess(a, b string) bool {
-	i, j := 0, 0
-	for i < len(a) && j < len(b) {
-		// 如果当前位置都是数字，提取完整数字进行数值比较
-		if unicode.IsDigit(rune(a[i])) && unicode.IsDigit(rune(b[j])) {
-			// 提取 a 中的数字
-			startA := i
-			for i < len(a) && unicode.IsDigit(rune(a[i])) {
-				i++
-			}
-			numA := a[startA:i]
-
-			// 提取 b 中的数字
-			startB := j
-			for j < len(b) && unicode.IsDigit(rune(b[j])) {
-				j++
-			}
-			numB := b[startB:j]
-
-			// 去除前导零（可选，但推荐）
-			// 比较长度：更长的数字更大（避免 "001" vs "1"）
-			if len(numA) != len(numB) {
-				return len(numA) < len(numB)
-			}
-			// 长度相同，字典序即数值序
-			if numA != numB {
-				return numA < numB
-			}
-		} else {
-			// 非数字部分，逐字符比较
-			if a[i] != b[j] {
-				return a[i] < b[j]
-			}
-			i++
-			j++
-		}
-	}
-	// 若前面都相等，短的排前面
-	return len(a) < len(b)
+	mapKeys := GetMapKeys(m)
+	return SliceSortNatural(mapKeys, asc)
 }
