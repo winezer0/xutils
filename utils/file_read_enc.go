@@ -80,7 +80,7 @@ func ReadFileToListWithEncoding(filePath, encode string, deUnprint, ignoreBlanks
 
 	// 自动去重
 	if deWeight {
-		lines = UniqueSlice(lines, false, ignoreBlanks)
+		lines = SliceUnique(lines, false, ignoreBlanks)
 	}
 
 	return lines, nil

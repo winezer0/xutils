@@ -80,6 +80,6 @@ func collectFiles(paths []string, allowAll bool, exts map[string]struct{}) ([]st
 func CollectFiles(paths, exts []string) ([]string, error) {
 	formatedExts, allowAll := normalizeExts(exts)
 	files, err := collectFiles(paths, allowAll, formatedExts)
-	files = UniqueSlice(files, false, true)
+	files = SliceUnique(files, false, true)
 	return files, err
 }
