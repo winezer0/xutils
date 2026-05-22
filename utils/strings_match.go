@@ -2,40 +2,74 @@ package utils
 
 import "strings"
 
+// StringHasKeyPerfect 终极完美版
+// 支持 && || 混合表达式，&& 优先级高于 ||
+// ignoreCase: 是否忽略大小写
+// trimSpace: 是否对内容、关键字自动去空格
+// noneRet: 当 content 或 keyRule 为空时返回的值
+func StringHasKeyPerfect(content string, keyRule string, ignoreCase bool, trimSpace bool, noneRet bool) bool {
+	// 1. 可选：去空格
+	if trimSpace {
+		content = strings.TrimSpace(content)
+		keyRule = strings.TrimSpace(keyRule)
+	}
+
+	// 2. 空值判断 + 自定义返回
+	if content == "" || keyRule == "" {
+		return noneRet
+	}
+
+	// 3. 可选：忽略大小写
+	checkContent := content
+	checkKey := keyRule
+	if ignoreCase {
+		checkContent = strings.ToLower(checkContent)
+		checkKey = strings.ToLower(checkKey)
+	}
+
+	// 4. 先按 || 分割（优先级最低）
+	orList := strings.Split(checkKey, "||")
+
+	// 5. 遍历每个 OR 分组，内部必须满足全部 AND
+	for _, orItem := range orList {
+		// 可选：每个关键词也去空格
+		if trimSpace {
+			orItem = strings.TrimSpace(orItem)
+		}
+		if orItem == "" {
+			continue
+		}
+
+		// 按 && 分割
+		andList := strings.Split(orItem, "&&")
+		match := true
+
+		for _, kw := range andList {
+			if trimSpace {
+				kw = strings.TrimSpace(kw)
+			}
+			if kw == "" {
+				continue
+			}
+			if !strings.Contains(checkContent, kw) {
+				match = false
+				break
+			}
+		}
+
+		if match {
+			return true
+		}
+	}
+
+	return false
+}
+
 // StringHasKey 检查字符串是否包含指定关键字，支持&&和||逻辑
-func StringHasKey(content string, key string) bool {
-	// 当内容或关键字为空时返回false
-	if content == "" || key == "" {
-		return false
-	}
-
-	contentLower := strings.ToLower(content)
-	keyStrLower := strings.ToLower(key)
-
-	if strings.Contains(keyStrLower, "||") {
-		// 只要有一个关键词存在于内容中，就返回true
-		keys := strings.Split(keyStrLower, "||")
-		for _, key := range keys {
-			key = strings.TrimSpace(key)
-			if key != "" && strings.Contains(contentLower, key) {
-				return true
-			}
-		}
-		return false
-	} else if strings.Contains(keyStrLower, "&&") {
-		// 所有关键词都必须存在于内容中，才返回true
-		keys := strings.Split(keyStrLower, "&&")
-		for _, key := range keys {
-			key = strings.TrimSpace(key)
-			if key != "" && !strings.Contains(contentLower, key) {
-				return false
-			}
-		}
-		return true
-	} else {
-		// 普通包含判断
-		return strings.Contains(contentLower, keyStrLower)
-	}
+// 【默认行为】：不区分大小写 + 自动 trim 空格 + 空内容/空关键字返回 false
+func StringHasKey(content string, keyStr string) bool {
+	// 直接调用完美版，传入和原来逻辑完全一致的默认参数
+	return StringHasKeyPerfect(content, keyStr, true, true, false)
 }
 
 // StringHasAllKeys 检查字符串是否包含所有关键字

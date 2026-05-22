@@ -87,3 +87,26 @@ func StringsAffix(ss []string, prefix, suffix string, check bool) []string {
 
 	return result
 }
+
+// EnsureElementAtEnd 确保元素位于切片末尾 不会修改原始切片
+// 存在则移除旧值并追加到末尾；不存在则直接追加
+func EnsureElementAtEnd(list []string, element string) []string {
+	filtered := make([]string, 0, len(list))
+	for _, v := range list {
+		if v != element {
+			filtered = append(filtered, v)
+		}
+	}
+	return append(filtered, element)
+}
+
+// FilterOutString 过滤掉切片中所有指定字符串，返回新切片，不修改原切片
+func FilterOutString(slice []string, target string) []string {
+	result := make([]string, 0, len(slice))
+	for _, item := range slice {
+		if item != target { // 不等于目标值才保留
+			result = append(result, item)
+		}
+	}
+	return result
+}
