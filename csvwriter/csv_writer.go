@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"encoding/csv"
 	"fmt"
-	"github.com/winezer0/xutils/logging"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/winezer0/zaplogs"
 )
 
 // 写入超时时间
@@ -61,7 +62,7 @@ func NewCSVWriter(filePath string, headers []string) (*CSVWriter, error) {
 func (w *CSVWriter) writeLoop() {
 	for record := range w.ch {
 		if err := w.writer.Write(record); err != nil {
-			logging.Warnf("CSV 写入失败: %v", err)
+			zaplogs.Warnf("CSV 写入失败: %v", err)
 		}
 	}
 	w.writer.Flush()

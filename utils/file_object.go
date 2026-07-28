@@ -2,9 +2,10 @@ package utils
 
 import (
 	"fmt"
-	"github.com/winezer0/xutils/logging"
 	"os"
 	"time"
+
+	"github.com/winezer0/zaplogs"
 )
 
 // FileInfo 表示文件信息
@@ -36,7 +37,7 @@ func PathToFileInfo(path string) (FileInfo, error) {
 	// 检测文件编码（保持原逻辑）
 	encoding, err := detectFileEncoding(path)
 	if err != nil {
-		logging.Warnf("detect file %s encoding error:%v", path, err)
+		zaplogs.Warnf("detect file %s encoding error:%v", path, err)
 	}
 
 	// 组装并返回FileInfo

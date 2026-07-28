@@ -3,7 +3,7 @@ package cacher
 import (
 	"time"
 
-	"github.com/winezer0/xutils/logging"
+	"github.com/winezer0/zaplogs"
 )
 
 // scheduleAutoSave 在数据变更后延迟触发一次自动保存。
@@ -62,6 +62,6 @@ func (m *CacheManager) runAutoSave() {
 		return
 	}
 	if err := m.SaveCache(); err != nil {
-		logging.Warnf("save cache error: %v", err)
+		zaplogs.Warnf("save cache error: %v", err)
 	}
 }

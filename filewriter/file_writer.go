@@ -3,10 +3,11 @@ package filewriter
 import (
 	"bufio"
 	"fmt"
-	"github.com/winezer0/xutils/logging"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/winezer0/zaplogs"
 )
 
 // 写入超时时间
@@ -45,7 +46,7 @@ func NewFileWriter(filePath string) (*FileWriter, error) {
 func (fw *FileWriter) writeLoop() {
 	for line := range fw.ch {
 		if _, err := fw.bufWriter.WriteString(line); err != nil {
-			logging.Warnf("文件写入失败: %v", err)
+			zaplogs.Warnf("文件写入失败: %v", err)
 		}
 	}
 	fw.bufWriter.Flush()
