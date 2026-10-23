@@ -3,8 +3,9 @@ package csvutils
 import (
 	"encoding/csv"
 	"fmt"
-	"github.com/winezer0/xutils/utils"
 	"os"
+
+	"github.com/winezer0/xutils/fileutils"
 )
 
 // WriteDictsToCSV 修复版：解决空分隔符+字段数不一致问题
@@ -35,7 +36,7 @@ func WriteDictsToCSV(filePath string, dicts []map[string]interface{}, header []s
 	}
 
 	// 3. 确定文件打开模式
-	flag := utils.ParseFlagFromOver(overwrite)
+	flag := fileutils.ParseFlagFromOver(overwrite)
 
 	// 4. 打开文件
 	file, err := os.OpenFile(filePath, flag, 0644)

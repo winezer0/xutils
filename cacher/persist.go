@@ -7,7 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/winezer0/xutils/utils"
+	"github.com/winezer0/xutils/fileutils"
+	"github.com/winezer0/xutils/pathutils"
 )
 
 var persistCacheFileFunc = persistCacheFile
@@ -89,14 +90,14 @@ func (m *CacheManager) SaveCache() error {
 		}
 	}()
 
-	data, err := utils.ToJSONBytes(snapshot)
+	data, err := fileutils.ToJSONBytes(snapshot)
 	if err != nil {
 		return fmt.Errorf("serialize cache data error: %w", err)
 	}
 	if state.maxDataBytes > 0 && int64(len(data)) > state.maxDataBytes {
 		return fmt.Errorf("serialized cache data exceeds max size limit")
 	}
-	if err := utils.EnsureDir(state.cacheFile, true); err != nil {
+	if err := pathutils.EnsureDir(state.cacheFile, true); err != nil {
 		return fmt.Errorf("ensure cache dir error: %w", err)
 	}
 	if err := persistCacheFileFunc(state.cacheFile, data); err != nil {

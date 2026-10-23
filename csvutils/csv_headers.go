@@ -3,11 +3,13 @@ package csvutils
 import (
 	"encoding/csv"
 	"fmt"
-	"github.com/winezer0/xutils/utils"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/winezer0/xutils/pathutils"
+	"github.com/winezer0/xutils/strutils"
 )
 
 // GetCSVHeaders 读取并解析 CSV 文件的首行作为表头信息。
@@ -210,7 +212,7 @@ func ShouldWriteHeader(file string, header []string, overwrite bool, delimiter r
 	}
 
 	// 文件不存在 肯定要写入头部
-	if !utils.FileExists(file) {
+	if !pathutils.FileExists(file) {
 		return true
 	}
 
@@ -229,7 +231,7 @@ func ShouldWriteHeader(file string, header []string, overwrite bool, delimiter r
 	}
 
 	// csv头部顺序不对，写入，避免用户找不到有效头部开始行 清洗新表头，确保与旧表头使用相同的修复规则
-	if !utils.SliceEqualStrict(RepairHeaders(oldHeaders), RepairHeaders(header)) {
+	if !strutils.SliceEqualStrict(RepairHeaders(oldHeaders), RepairHeaders(header)) {
 		fmt.Printf("file %s: header mismatch (old=%v, new=%v), will write new header\n", file, oldHeaders, header)
 		return true
 	}

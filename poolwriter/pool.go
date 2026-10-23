@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/winezer0/xutils/utils"
+	"github.com/winezer0/xutils/fileutils"
 	"github.com/winezer0/zaplogs"
 )
 
@@ -99,8 +99,8 @@ func writeTask(task StoreTask) error {
 		return fmt.Errorf("store path is empty")
 	}
 	if task.WriteRaw {
-		return utils.WriteBytes(task.StorePath, task.StoreContent, task.Overwrite)
+		return fileutils.WriteBytes(task.StorePath, task.StoreContent, task.Overwrite)
 	} else {
-		return utils.WriteLine(task.StorePath, string(task.StoreContent), task.Overwrite)
+		return fileutils.WriteLine(task.StorePath, string(task.StoreContent), task.Overwrite)
 	}
 }

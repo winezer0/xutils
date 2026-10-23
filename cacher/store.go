@@ -6,7 +6,7 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/winezer0/xutils/utils"
+	"github.com/winezer0/xutils/pathutils"
 )
 
 // Clear 清空所有缓存并删除缓存文件。
@@ -31,7 +31,7 @@ func (m *CacheManager) Clear() error {
 	state.version++
 	state.cacheMux.Unlock()
 
-	if utils.FileExists(state.cacheFile) {
+	if pathutils.FileExists(state.cacheFile) {
 		if err := os.Remove(state.cacheFile); err != nil {
 			return fmt.Errorf("failed to remove cache file: %w", err)
 		}

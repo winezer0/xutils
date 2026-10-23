@@ -2,8 +2,9 @@ package csvutils
 
 import (
 	"encoding/csv"
-	"github.com/winezer0/xutils/utils"
 	"os"
+
+	"github.com/winezer0/xutils/fileutils"
 )
 
 // WriteRowsToCSV 将表头与数据行写入 CSV 文件
@@ -16,7 +17,7 @@ func WriteRowsToCSV(filePATH string, header []string, rows [][]string, delimiter
 
 	needWriteHeader := ShouldWriteHeader(filePATH, header, overwrite, delimiter)
 
-	flag := utils.ParseFlagFromOver(overwrite)
+	flag := fileutils.ParseFlagFromOver(overwrite)
 
 	file, err := os.OpenFile(filePATH, flag, 0644)
 	if err != nil {
