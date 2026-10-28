@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/winezer0/zaplogs"
+	"github.com/winezer0/xutils/logging"
 
 	"gopkg.in/yaml.v3"
 )
@@ -19,12 +19,12 @@ func LoadYAMLBytes(content []byte, v interface{}) error {
 
 // LoadYAML 从文件加载YAML数据
 func LoadYAML(filePath string, v interface{}) error {
-	zaplogs.Debugf("Loading YAML file...: %s", filePath)
+	logging.Debugf("Loading YAML file...: %s", filePath)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read the YAML file: %v", err)
 	}
-	zaplogs.Debugf("Size of the YAML file: %d byte", len(data))
+	logging.Debugf("Size of the YAML file: %d byte", len(data))
 	if err := LoadYAMLBytes(data, v); err != nil {
 		return fmt.Errorf("failed to parse YAML data: %v", err)
 	}

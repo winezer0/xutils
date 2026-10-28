@@ -1,8 +1,9 @@
 package cmdutils
 
 import (
-	"fmt"
 	"strings"
+
+	"github.com/winezer0/xutils/logging"
 )
 
 // ParseHeaders 从形如 key=value 的切片解析请求头(中文注释)
@@ -14,7 +15,7 @@ func ParseHeaders(headers []string) map[string]string {
 		}
 		kv := strings.SplitN(item, "=", 2)
 		if len(kv) != 2 {
-			fmt.Printf("Invalid header: %s\n", item)
+			logging.Warnf("Invalid header: %s", item)
 			continue
 		}
 		headerMaps[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])

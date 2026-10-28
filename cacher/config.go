@@ -3,7 +3,7 @@ package cacher
 import (
 	"time"
 
-	"github.com/winezer0/zaplogs"
+	"github.com/winezer0/xutils/logging"
 )
 
 const (
@@ -62,7 +62,7 @@ func NewCacheManagerWithConfig(cfg Config) *CacheManager {
 		return manager
 	}
 	if err := manager.LoadCache(); err != nil {
-		zaplogs.Warnf("load cache file error: %v", err)
+		logging.Warnf("load cache file error: %v", err)
 	}
 	return manager
 }

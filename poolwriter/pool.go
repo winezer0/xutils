@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/winezer0/xutils/fileutils"
-	"github.com/winezer0/zaplogs"
+	"github.com/winezer0/xutils/logging"
 )
 
 // StoreTask 表示通用的写入任务，支持存储响应内容和缓存键写入。
@@ -87,7 +87,7 @@ func (p *Pool) runWorker() {
 		for _, task := range tasks {
 			if err := writeTask(task); err != nil {
 				p.failCount.Add(1)
-				zaplogs.Errorf("writer task failed: %v, store_path=%s", err, task.StorePath)
+				logging.Errorf("writer task failed: %v, store_path=%s", err, task.StorePath)
 			}
 		}
 	}

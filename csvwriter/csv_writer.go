@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/winezer0/zaplogs"
+	"github.com/winezer0/xutils/logging"
 )
 
 // 写入超时时间
@@ -62,7 +62,7 @@ func NewCSVWriter(filePath string, headers []string) (*CSVWriter, error) {
 func (w *CSVWriter) writeLoop() {
 	for record := range w.ch {
 		if err := w.writer.Write(record); err != nil {
-			zaplogs.Warnf("CSV 写入失败: %v", err)
+			logging.Warnf("CSV 写入失败: %v", err)
 		}
 	}
 	w.writer.Flush()
